@@ -6,7 +6,7 @@ import { AuthGateway } from './components/AuthGateway';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
-import { AiAnalyticsModule } from './components/AiAnalyticsModule';
+import { AiAnalyticsModule } from './components/AIAnalyticsModule';
 import { ProductionModule } from './components/ProductionModule';
 import { InventoryModule } from './components/InventoryModule';
 import { SupplierModule } from './components/SupplierModule';
