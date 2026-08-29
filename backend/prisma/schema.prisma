@@ -1,0 +1,76 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  username     String   @unique
+  passwordHash String?  // Optional for OAuth users
+  name         String
+  role         String   @default("Factory Staff") // "Administrator", "Factory Manager", "Factory Staff"
+  department   String   @default("General Operations")
+  avatar       String?  @db.Text
+  status       String   @default("Active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  productionBatches ProductionBatch[]
+  salesOrders       SalesOrder[]
+}
+
+model InventoryItem {
+  id             Int      @id @default(autoincrement())
+  name           String   @unique // "Groundnut Oil", "Sunflower Oil", "Mustard Oil", "Sesame Oil", "Coconut Oil"
+  currentLiters  Float    @default(0)
+  capacityLiters Float
+  minAlert       Float
+  updatedAt      DateTime @updatedAt
+}
+
+model ProductionBatch {
+  id             String   @id // e.g. "BATCH-101"
+  oilType        String
+  quantityLiters Float
+  details        String   @default("Standard Extraction Batch")
+  date           String   // Stored as YYYY-MM-DD
+  userId         String?
+  recordedBy     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+}
+
+model SalesOrder {
+  id             String   @id // e.g. "ORD-501"
+  orderType      String   // "Retail Customer", "Wholesale Supplier"
+  buyerName      String
+  oilType        String
+  quantityLiters Float
+  totalAmount    Float
+  date           String   // Stored as YYYY-MM-DD
+  userId         String?
+  recordedBy     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+}
+
+model SupplierIntake {
+  id           String   @id // e.g. "SUP-01"
+  supplierName String
+  materialItem String
+  quantity     String   // e.g. "5 Tons"
+  totalCost    Float
+  date         String   // Stored as YYYY-MM-DD
+  createdAt    DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  details   String?  @db.Text
+  userEmail String?
+  timestamp DateTime @default(now())
+}
