@@ -11,32 +11,18 @@ import { getSocket } from '../services/socket';
 const DataContext = createContext();
 
 const INITIAL_INVENTORY = [
-  { id: 1, name: 'Groundnut Oil', currentLiters: 5000, capacityLiters: 10000, minAlert: 1000 },
-  { id: 2, name: 'Sunflower Oil', currentLiters: 3500, capacityLiters: 8000, minAlert: 800 },
-  { id: 3, name: 'Mustard Oil', currentLiters: 450, capacityLiters: 6000, minAlert: 500 },
-  { id: 4, name: 'Sesame Oil', currentLiters: 1800, capacityLiters: 5000, minAlert: 400 },
-  { id: 5, name: 'Coconut Oil', currentLiters: 4000, capacityLiters: 7000, minAlert: 1000 },
+  { id: 1, name: 'Groundnut Oil', currentLiters: 0, capacityLiters: 10000, minAlert: 1000 },
+  { id: 2, name: 'Sunflower Oil', currentLiters: 0, capacityLiters: 8000, minAlert: 800 },
+  { id: 3, name: 'Mustard Oil', currentLiters: 0, capacityLiters: 6000, minAlert: 500 },
+  { id: 4, name: 'Sesame Oil', currentLiters: 0, capacityLiters: 5000, minAlert: 400 },
+  { id: 5, name: 'Coconut Oil', currentLiters: 0, capacityLiters: 7000, minAlert: 1000 },
 ];
 
-const INITIAL_PRODUCTION = [
-  { id: 'BATCH-101', oilType: 'Groundnut Oil', quantityLiters: 1200, details: 'Regular Morning Batch', date: '2026-08-10' },
-  { id: 'BATCH-102', oilType: 'Coconut Oil', quantityLiters: 800, details: 'Pure Cold Pressed Batch', date: '2026-08-10' }
-];
-
-const INITIAL_SUPPLIERS = [
-  { id: 'SUP-01', supplierName: 'AgriCorp Farmers', materialItem: 'Raw Groundnuts', quantity: '5 Tons', totalCost: 425000, date: '2026-08-09' },
-  { id: 'SUP-02', supplierName: 'Sunshine Seeds Co.', materialItem: 'Sunflower Seeds', quantity: '3 Tons', totalCost: 280000, date: '2026-08-10' }
-];
-
-const INITIAL_SALES = [
-  { id: 'ORD-501', orderType: 'Retail Customer', buyerName: 'FreshMart Store', oilType: 'Groundnut Oil', quantityLiters: 500, totalAmount: 95000, date: '2026-08-10' },
-  { id: 'ORD-502', orderType: 'Wholesale Supplier', buyerName: 'Golden Oils Wholesale', oilType: 'Sunflower Oil', quantityLiters: 1000, totalAmount: 180000, date: '2026-08-10' }
-];
-
+const INITIAL_PRODUCTION = [];
+const INITIAL_SUPPLIERS = [];
+const INITIAL_SALES = [];
 const INITIAL_EMPLOYEES = [
-  { id: 'EMP-01', name: 'Raghul', role: 'Administrator', email: 'raghuluma2006@gmail.com', dept: 'Management' },
-  { id: 'EMP-02', name: 'Rajesh Kumar', role: 'Factory Staff', email: 'rajesh@smartoil.com', dept: 'Production' },
-  { id: 'EMP-03', name: 'Ananya Sharma', role: 'Factory Manager', email: 'ananya@smartoil.com', dept: 'Operations' }
+  { id: 'EMP-01', name: 'Raghul (Administrator)', role: 'Administrator', email: 'raghuluma2006@gmail.com', dept: 'System Architecture & Operations' }
 ];
 
 export const DataProvider = ({ children }) => {
