@@ -1,93 +1,71 @@
-import { prisma } from '../config/db.js';
+import Sales from '../models/Sales.js';
+import Inventory from '../models/Inventory.js';
 
-// GET /api/sales
-export const getSalesLogs = async (req, res) => {
+export const getLogs = async (req, res) => {
   try {
-    const logs = await prisma.salesOrder.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        recordedBy: {
-          select: { name: true, email: true, role: true }
-        }
-      }
+    const logs = await Sales.find().sort({ createdAt: -1 });
+    res.json({
+      success: true,
+      logs,
     });
-
-    res.json({ success: true, logs });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch sales orders', error: error.message });
+  } catch (err) {
+    console.error('Get sales logs error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch sales logs', error: err.message });
   }
 };
 
-// POST /api/sales
-export const addSalesOrder = async (req, res) => {
-  const { orderType, buyerName, oilType, quantityLiters, totalAmount } = req.body;
-
-  if (!orderType || !buyerName || !oilType || !quantityLiters || !totalAmount) {
-    return res.status(400).json({ success: false, message: 'All order fields (orderType, buyerName, oilType, quantity, totalAmount) are required.' });
-  }
-
-  const qty = Number(quantityLiters);
-  const amount = Number(totalAmount);
-  const orderId = `ORD-${Math.floor(500 + Math.random() * 500)}`;
-  const dateStr = new Date().toISOString().split('T')[0];
-
+export const addSale = async (req, res) => {
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Check stock level
-      const tank = await tx.inventoryItem.findUnique({
-        where: { name: oilType }
-      });
+    const { orderType, buyerName, oilType, quantityLiters, totalAmount } = req.body;
 
-      if (!tank) {
-        throw new Error(`Oil type "${oilType}" not found in inventory.`);
-      }
+    if (!buyerName || !oilType || !quantityLiters || totalAmount === undefined) {
+      return res.status(400).json({ success: false, message: 'All sale order fields are required' });
+    }
 
-      if (tank.currentLiters < qty) {
-        throw new Error(`Insufficient stock for ${oilType}. Available: ${tank.currentLiters} Liters, Requested: ${qty} Liters.`);
-      }
+    const qty = Number(quantityLiters);
+    const amt = Number(totalAmount);
+    if (qty <= 0) {
+      return res.status(400).json({ success: false, message: 'Quantity must be greater than zero' });
+    }
 
-      // 2. Deduct inventory
-      const updatedTank = await tx.inventoryItem.update({
-        where: { name: oilType },
-        data: {
-          currentLiters: {
-            decrement: qty
-          }
-        }
-      });
-
-      // 3. Create Sales Order
-      const newSale = await tx.salesOrder.create({
-        data: {
-          id: orderId,
-          orderType,
-          buyerName,
-          oilType,
-          quantityLiters: qty,
-          totalAmount: amount,
-          date: dateStr,
-          userId: req.user?.id || null
-        }
-      });
-
-      return { newSale, updatedTank };
+    const orderId = `ORD-${Math.floor(500 + Math.random() * 500)}`;
+    const newSale = await Sales.create({
+      id: orderId,
+      orderType: orderType || 'Retail Customer',
+      buyerName,
+      oilType,
+      quantityLiters: qty,
+      totalAmount: amt,
+      date: new Date().toISOString().split('T')[0],
     });
 
-    // 4. Broadcast live update over Socket.io
+    // Automatically deduct inventory stock for this oil variety
+    const tank = await Inventory.findOne({ name: oilType });
+    let updatedTank = null;
+    if (tank) {
+      tank.currentLiters = Math.max(0, tank.currentLiters - qty);
+      updatedTank = await tank.save();
+    }
+
+    // Broadcast real-time Socket.io events
     const io = req.app.get('io');
     if (io) {
-      const allInventory = await prisma.inventoryItem.findMany({ orderBy: { id: 'asc' } });
-      io.emit('sales:added', { sale: result.newSale });
-      io.emit('inventory:sync', { inventory: allInventory });
+      io.emit('sales:added', { sale: newSale });
+      if (updatedTank) {
+        io.emit('inventory:updated', { item: updatedTank });
+      }
     }
 
     res.status(201).json({
       success: true,
-      sale: result.newSale,
-      updatedTank: result.updatedTank
+      message: `Sale recorded. Deducted ${qty}L from ${oilType}.`,
+      sale: newSale,
+      updatedInventory: updatedTank,
     });
-  } catch (error) {
-    console.error('Sales order error:', error);
-    res.status(400).json({ success: false, message: error.message });
+  } catch (err) {
+    console.error('Add sale error:', err);
+    res.status(500).json({ success: false, message: 'Failed to record sale', error: err.message });
   }
 };
+
+export default { getLogs, addSale };

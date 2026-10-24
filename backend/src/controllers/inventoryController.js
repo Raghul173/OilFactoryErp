@@ -1,47 +1,50 @@
-import { prisma } from '../config/db.js';
+import Inventory from '../models/Inventory.js';
 
-// GET /api/inventory
 export const getInventory = async (req, res) => {
   try {
-    const inventory = await prisma.inventoryItem.findMany({
-      orderBy: { id: 'asc' }
-    });
-
-    const lowStockAlerts = inventory.filter(item => item.currentLiters <= item.minAlert);
-
+    const inventory = await Inventory.find().sort({ id: 1 });
     res.json({
       success: true,
       inventory,
-      lowStockAlerts
     });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch inventory', error: error.message });
+  } catch (err) {
+    console.error('Get inventory error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch inventory', error: err.message });
   }
 };
 
-// PUT /api/inventory/:id
-export const updateInventoryItem = async (req, res) => {
-  const { id } = req.params;
-  const { capacityLiters, minAlert, currentLiters } = req.body;
-
+export const updateItem = async (req, res) => {
   try {
-    const updated = await prisma.inventoryItem.update({
-      where: { id: Number(id) },
-      data: {
-        ...(capacityLiters !== undefined && { capacityLiters: Number(capacityLiters) }),
-        ...(minAlert !== undefined && { minAlert: Number(minAlert) }),
-        ...(currentLiters !== undefined && { currentLiters: Number(currentLiters) })
-      }
-    });
+    const { id } = req.params;
+    const { currentLiters, capacityLiters, minAlert } = req.body;
 
-    // Broadcast live update over Socket.io
+    const numericId = Number(id);
+    const updateFields = {};
+    if (currentLiters !== undefined) updateFields.currentLiters = Number(currentLiters);
+    if (capacityLiters !== undefined) updateFields.capacityLiters = Number(capacityLiters);
+    if (minAlert !== undefined) updateFields.minAlert = Number(minAlert);
+
+    const updated = await Inventory.findOneAndUpdate({ id: numericId }, updateFields, { new: true });
+
+    if (!updated) {
+      return res.status(404).json({ success: false, message: `Inventory item ${id} not found` });
+    }
+
+    // Emit real-time socket event
     const io = req.app.get('io');
     if (io) {
       io.emit('inventory:updated', { item: updated });
     }
 
-    res.json({ success: true, item: updated });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to update inventory tank', error: error.message });
+    res.json({
+      success: true,
+      message: 'Inventory updated successfully',
+      item: updated,
+    });
+  } catch (err) {
+    console.error('Update inventory error:', err);
+    res.status(500).json({ success: false, message: 'Failed to update inventory', error: err.message });
   }
 };
+
+export default { getInventory, updateItem };

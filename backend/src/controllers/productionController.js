@@ -1,81 +1,71 @@
-import { prisma } from '../config/db.js';
+import Production from '../models/Production.js';
+import Inventory from '../models/Inventory.js';
 
-// GET /api/production
-export const getProductionLogs = async (req, res) => {
+export const getLogs = async (req, res) => {
   try {
-    const logs = await prisma.productionBatch.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        recordedBy: {
-          select: { name: true, email: true, role: true }
-        }
-      }
+    const logs = await Production.find().sort({ createdAt: -1 });
+    res.json({
+      success: true,
+      logs,
     });
-
-    res.json({ success: true, logs });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch production logs', error: error.message });
+  } catch (err) {
+    console.error('Get production logs error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch production logs', error: err.message });
   }
 };
 
-// POST /api/production
-export const addProductionBatch = async (req, res) => {
-  const { oilType, quantityLiters, details } = req.body;
-
-  if (!oilType || !quantityLiters || Number(quantityLiters) <= 0) {
-    return res.status(400).json({ success: false, message: 'Valid oil type and positive quantity in liters are required.' });
-  }
-
-  const qty = Number(quantityLiters);
-  const batchId = `BATCH-${Math.floor(100 + Math.random() * 900)}`;
-  const dateStr = new Date().toISOString().split('T')[0];
-
+export const addBatch = async (req, res) => {
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Create Production Batch record
-      const newBatch = await tx.productionBatch.create({
-        data: {
-          id: batchId,
-          oilType,
-          quantityLiters: qty,
-          details: details || 'Standard Extraction Batch',
-          date: dateStr,
-          userId: req.user?.id || null
-        }
-      });
+    const { oilType, quantityLiters, rawSeedWeightKg, details } = req.body;
 
-      // 2. Fetch and atomically increase inventory
-      const tank = await tx.inventoryItem.findUnique({
-        where: { name: oilType }
-      });
+    if (!oilType || !quantityLiters) {
+      return res.status(400).json({ success: false, message: 'Oil type and quantity in liters are required' });
+    }
 
-      let updatedTank = null;
-      if (tank) {
-        const newLiters = Math.min(tank.capacityLiters, tank.currentLiters + qty);
-        updatedTank = await tx.inventoryItem.update({
-          where: { name: oilType },
-          data: { currentLiters: newLiters }
-        });
-      }
+    const qty = Number(quantityLiters);
+    if (qty <= 0) {
+      return res.status(400).json({ success: false, message: 'Quantity must be greater than zero' });
+    }
 
-      return { newBatch, updatedTank };
+    const seedKg = Number(rawSeedWeightKg) > 0 ? Number(rawSeedWeightKg) : Math.round(qty * 2.35);
+
+    const batchId = `BATCH-${Math.floor(100 + Math.random() * 900)}`;
+    const newBatch = await Production.create({
+      id: batchId,
+      oilType,
+      rawSeedWeightKg: seedKg,
+      quantityLiters: qty,
+      details: details || `${oilType} Production Batch`,
+      date: new Date().toISOString().split('T')[0],
     });
 
-    // 3. Broadcast real-time event via Socket.io
+    // Automatically increase inventory stock for this oil category
+    const tank = await Inventory.findOne({ name: oilType });
+    let updatedTank = null;
+    if (tank) {
+      tank.currentLiters = Math.min(tank.capacityLiters, tank.currentLiters + qty);
+      updatedTank = await tank.save();
+    }
+
+    // Broadcast real-time Socket.io events
     const io = req.app.get('io');
     if (io) {
-      const allInventory = await prisma.inventoryItem.findMany({ orderBy: { id: 'asc' } });
-      io.emit('production:added', { batch: result.newBatch });
-      io.emit('inventory:sync', { inventory: allInventory });
+      io.emit('production:added', { batch: newBatch });
+      if (updatedTank) {
+        io.emit('inventory:updated', { item: updatedTank });
+      }
     }
 
     res.status(201).json({
       success: true,
-      batch: result.newBatch,
-      updatedTank: result.updatedTank
+      message: `Production batch recorded. Added ${qty}L to ${oilType}.`,
+      batch: newBatch,
+      updatedInventory: updatedTank,
     });
-  } catch (error) {
-    console.error('Production batch error:', error);
-    res.status(500).json({ success: false, message: 'Failed to record production batch', error: error.message });
+  } catch (err) {
+    console.error('Add production batch error:', err);
+    res.status(500).json({ success: false, message: 'Failed to add production batch', error: err.message });
   }
 };
+
+export default { getLogs, addBatch };

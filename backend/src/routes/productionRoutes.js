@@ -1,10 +1,9 @@
 import express from 'express';
-import { getProductionLogs, addProductionBatch } from '../controllers/productionController.js';
-import { authenticateToken, requireRole } from '../middlewares/authMiddleware.js';
+import { getLogs, addBatch } from '../controllers/productionController.js';
 
 const router = express.Router();
 
-router.get('/', getProductionLogs);
-router.post('/', authenticateToken, requireRole(['Administrator', 'Factory Manager', 'Factory Staff']), addProductionBatch);
+router.get('/', getLogs);
+router.post('/', addBatch);
 
 export default router;

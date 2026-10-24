@@ -1,11 +1,16 @@
 import express from 'express';
-import { getEmployees, addEmployee, removeEmployee } from '../controllers/employeeController.js';
-import { authenticateToken, requireRole } from '../middlewares/authMiddleware.js';
+import {
+  getEmployees,
+  addEmployee,
+  removeEmployee,
+  updateAttendance,
+} from '../controllers/employeeController.js';
 
 const router = express.Router();
 
 router.get('/', getEmployees);
-router.post('/', authenticateToken, requireRole(['Administrator', 'Factory Manager']), addEmployee);
-router.delete('/:id', authenticateToken, requireRole(['Administrator']), removeEmployee);
+router.post('/', addEmployee);
+router.delete('/:id', removeEmployee);
+router.patch('/:id/attendance', updateAttendance);
 
 export default router;

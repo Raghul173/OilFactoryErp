@@ -2,20 +2,20 @@ import express from 'express';
 import {
   login,
   googleAuth,
-  registerNewCredentials,
-  updateProfile,
   getMe,
-  getAccountsPool
+  getAccountsPool,
+  registerCredentials,
+  updateProfile,
 } from '../controllers/authController.js';
-import { authenticateToken, requireRole } from '../middlewares/authMiddleware.js';
+import { authenticateToken } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
 router.post('/login', login);
 router.post('/google', googleAuth);
 router.get('/accounts-pool', getAccountsPool);
-router.post('/register-credentials', authenticateToken, requireRole(['Administrator']), registerNewCredentials);
-router.put('/profile', authenticateToken, updateProfile);
+router.post('/register-credentials', registerCredentials);
+router.put('/profile', updateProfile);
 router.get('/me', authenticateToken, getMe);
 
 export default router;
