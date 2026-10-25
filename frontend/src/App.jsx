@@ -12,6 +12,7 @@ import { InventoryModule } from './components/InventoryModule';
 import { SupplierModule } from './components/SupplierModule';
 import { SalesModule } from './components/SalesModule';
 import { EmployeeModule } from './components/EmployeeModule';
+import { ReportsModule } from './components/ReportsModule';
 
 const MainLayout = () => {
   const { isAuthenticated } = useAuth();
@@ -37,6 +38,8 @@ const MainLayout = () => {
         return <SalesModule />;
       case 'employees':
         return <EmployeeModule />;
+      case 'reports':
+        return <ReportsModule />;
       default:
         return <Dashboard setActiveTab={setActiveTab} />;
     }

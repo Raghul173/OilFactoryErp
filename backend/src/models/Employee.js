@@ -46,9 +46,6 @@ const employeeSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    password: {
-      type: String,
-    },
   },
   {
     timestamps: true,

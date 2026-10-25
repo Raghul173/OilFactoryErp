@@ -8,6 +8,7 @@ import {
   Truck,
   Receipt,
   Users,
+  FileSpreadsheet,
   ShieldCheck,
   Briefcase,
   UserCheck
@@ -51,6 +52,12 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
       id: 'sales',
       label: 'Sales Flow',
       icon: Receipt,
+      roles: ['Factory Staff', 'Factory Manager', 'Administrator']
+    },
+    {
+      id: 'reports',
+      label: 'Audit & Reports',
+      icon: FileSpreadsheet,
       roles: ['Factory Staff', 'Factory Manager', 'Administrator']
     },
     {

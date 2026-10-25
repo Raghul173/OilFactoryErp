@@ -21,8 +21,7 @@ export const addIntake = async (req, res) => {
       return res.status(400).json({ success: false, message: 'All supplier purchase fields are required' });
     }
 
-    const count = await Supplier.countDocuments();
-    const supId = `SUP-0${count + 1}`;
+    const supId = `SUP-${Date.now().toString().slice(-6)}`;
 
     const newIntake = await Supplier.create({
       id: supId,

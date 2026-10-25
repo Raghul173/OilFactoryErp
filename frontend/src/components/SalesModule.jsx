@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
-import { ShoppingBag, Plus, CheckCircle2 } from 'lucide-react';
+import { ShoppingBag, CheckCircle2, AlertTriangle, Plus } from 'lucide-react';
 import { FlowAnalytics } from './FlowAnalytics';
 
 export const SalesModule = () => {
@@ -12,24 +12,32 @@ export const SalesModule = () => {
   const [quantityLiters, setQuantityLiters] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!buyerName || !quantityLiters || !totalAmount) return;
+    setErrorMsg('');
+    setSuccessMsg('');
 
-    addSale({
-      orderType,
-      buyerName,
-      oilType,
-      quantityLiters: Number(quantityLiters),
-      totalAmount: Number(totalAmount)
-    });
+    try {
+      await addSale({
+        orderType,
+        buyerName,
+        oilType,
+        quantityLiters: Number(quantityLiters),
+        totalAmount: Number(totalAmount)
+      });
 
-    setSuccessMsg(`Success! Order for ${quantityLiters}L ${oilType} recorded. Inventory updated automatically.`);
-    setBuyerName('');
-    setQuantityLiters('');
-    setTotalAmount('');
-    setTimeout(() => setSuccessMsg(''), 4000);
+      setSuccessMsg(`Success! Order for ${quantityLiters}L ${oilType} recorded. Inventory updated automatically.`);
+      setBuyerName('');
+      setQuantityLiters('');
+      setTotalAmount('');
+      setTimeout(() => setSuccessMsg(''), 4500);
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to record sales order.');
+      setTimeout(() => setErrorMsg(''), 6000);
+    }
   };
 
   // 1. Pie Chart Data: Revenue Share by Order Variety (Retail Customer vs Wholesale Supplier)
@@ -63,8 +71,15 @@ export const SalesModule = () => {
 
       {successMsg && (
         <div className="p-4 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-2xl text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4" />
-          {successMsg}
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-2xl text-rose-700 dark:text-rose-400 text-xs font-semibold flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+          <span>{errorMsg}</span>
         </div>
       )}
 

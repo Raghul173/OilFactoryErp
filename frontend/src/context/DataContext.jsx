@@ -213,35 +213,50 @@ export const DataProvider = ({ children }) => {
   const addSale = async ({ orderType, buyerName, oilType, quantityLiters, totalAmount }) => {
     const qty = Number(quantityLiters);
     const amt = Number(totalAmount);
-    const orderId = `ORD-${Math.floor(500 + Math.random() * 500)}`;
 
-    const newSale = {
-      id: orderId,
-      orderType,
-      buyerName,
-      oilType,
-      quantityLiters: qty,
-      totalAmount: amt,
-      date: new Date().toISOString().split('T')[0]
-    };
+    const currentTank = inventory.find(i => i.name === oilType);
+    const availableLiters = currentTank ? (currentTank.currentLiters ?? currentTank.current ?? 0) : 0;
+    if (availableLiters < qty) {
+      throw new Error(`Insufficient inventory for ${oilType}. Current stock is ${availableLiters}L, but ${qty}L was requested.`);
+    }
 
-    // 1. Optimistic Local State Update
-    setSalesLogs(prev => [newSale, ...prev]);
-    setInventory(prev => prev.map(item => {
-      if (item.name === oilType) {
-        return {
-          ...item,
-          currentLiters: Math.max(0, item.currentLiters - qty)
-        };
-      }
-      return item;
-    }));
-
-    // 2. Call Backend API
     try {
-      await salesService.addSale({ orderType, buyerName, oilType, quantityLiters: qty, totalAmount: amt });
+      const res = await salesService.addSale({ orderType, buyerName, oilType, quantityLiters: qty, totalAmount: amt });
+      if (res.data?.sale) {
+        setSalesLogs(prev => {
+          if (prev.some(s => s.id === res.data.sale.id)) return prev;
+          return [res.data.sale, ...prev];
+        });
+      }
+      if (res.data?.updatedInventory) {
+        setInventory(prev => prev.map(item => item.name === oilType ? res.data.updatedInventory : item));
+      }
+      return res.data;
     } catch (err) {
-      console.warn('Backend sales sync error (kept local state):', err.message);
+      if (err.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+      // Offline fallback only if stock validation passed
+      const orderId = `ORD-${Date.now().toString().slice(-6)}`;
+      const offlineSale = {
+        id: orderId,
+        orderType,
+        buyerName,
+        oilType,
+        quantityLiters: qty,
+        totalAmount: amt,
+        date: new Date().toISOString().split('T')[0]
+      };
+      setSalesLogs(prev => [offlineSale, ...prev]);
+      setInventory(prev => prev.map(item => {
+        if (item.name === oilType) {
+          return {
+            ...item,
+            currentLiters: Math.max(0, (item.currentLiters ?? item.current ?? 0) - qty)
+          };
+        }
+        return item;
+      }));
     }
   };
 

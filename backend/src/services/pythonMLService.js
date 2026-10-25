@@ -1,10 +1,15 @@
 import { execFile } from 'child_process';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const pythonScriptPath = path.resolve(__dirname, '../ml/oil_yield_model.py');
+
+// Primary ML script path at root ml/train_model.py (uses dataset.csv)
+const rootMLPath = path.resolve(__dirname, '../../../ml/train_model.py');
+const internalMLPath = path.resolve(__dirname, '../ml/oil_yield_model.py');
+const pythonScriptPath = fs.existsSync(rootMLPath) ? rootMLPath : internalMLPath;
 
 /**
  * Executes the Python Scikit-Learn Linear Regression model script
@@ -21,7 +26,9 @@ export const runPythonMLPrediction = (oilType = 'Groundnut Oil', seedWeightKg = 
       '--json',
     ];
 
-    execFile('python', args, { windowsHide: true }, (error, stdout, stderr) => {
+    const pythonCmd = process.env.PYTHON_BIN || (process.platform === 'win32' ? 'python' : 'python3');
+
+    execFile(pythonCmd, args, { windowsHide: true, timeout: 20000 }, (error, stdout, stderr) => {
       if (error) {
         return reject(error);
       }
@@ -38,3 +45,4 @@ export const runPythonMLPrediction = (oilType = 'Groundnut Oil', seedWeightKg = 
 export default {
   runPythonMLPrediction,
 };
+

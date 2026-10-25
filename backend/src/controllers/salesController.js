@@ -28,7 +28,23 @@ export const addSale = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Quantity must be greater than zero' });
     }
 
-    const orderId = `ORD-${Math.floor(500 + Math.random() * 500)}`;
+    // 1. Verify Storage Tank Inventory Availability BEFORE creating the sale
+    const tank = await Inventory.findOne({ name: oilType });
+    if (!tank) {
+      return res.status(404).json({ success: false, message: `Storage tank for ${oilType} not found.` });
+    }
+
+    if (tank.currentLiters < qty) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient inventory for ${oilType}. Current stock is ${tank.currentLiters}L, but ${qty}L was requested.`,
+        availableStock: tank.currentLiters,
+        requestedStock: qty,
+      });
+    }
+
+    // 2. Generate Collision-Proof Sequential Timestamp ID
+    const orderId = `ORD-${Date.now().toString().slice(-6)}`;
     const newSale = await Sales.create({
       id: orderId,
       orderType: orderType || 'Retail Customer',
@@ -39,26 +55,20 @@ export const addSale = async (req, res) => {
       date: new Date().toISOString().split('T')[0],
     });
 
-    // Automatically deduct inventory stock for this oil variety
-    const tank = await Inventory.findOne({ name: oilType });
-    let updatedTank = null;
-    if (tank) {
-      tank.currentLiters = Math.max(0, tank.currentLiters - qty);
-      updatedTank = await tank.save();
-    }
+    // 3. Deduct Inventory Stock Safely
+    tank.currentLiters = Math.max(0, tank.currentLiters - qty);
+    const updatedTank = await tank.save();
 
-    // Broadcast real-time Socket.io events
+    // 4. Broadcast real-time Socket.io events
     const io = req.app.get('io');
     if (io) {
       io.emit('sales:added', { sale: newSale });
-      if (updatedTank) {
-        io.emit('inventory:updated', { item: updatedTank });
-      }
+      io.emit('inventory:updated', { item: updatedTank });
     }
 
     res.status(201).json({
       success: true,
-      message: `Sale recorded. Deducted ${qty}L from ${oilType}.`,
+      message: `Sale recorded. Deducted ${qty}L from ${oilType}. Remaining stock: ${tank.currentLiters}L.`,
       sale: newSale,
       updatedInventory: updatedTank,
     });

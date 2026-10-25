@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 
 export const getEmployees = async (req, res) => {
   try {
-    const employees = await Employee.find().sort({ createdAt: 1 });
+    const employees = await Employee.find().select('-password').sort({ createdAt: 1 });
     res.json({
       success: true,
       employees,
@@ -27,8 +27,8 @@ export const addEmployee = async (req, res) => {
     const allowedRoles = ['Factory Staff', 'Factory Manager'];
     const assignedRole = allowedRoles.includes(role) ? role : 'Factory Staff';
 
-    const count = await Employee.countDocuments();
-    const empId = `EMP-0${count + 1}`;
+    const timestampSuffix = Date.now().toString().slice(-4);
+    const empId = `EMP-${timestampSuffix}`;
     const cleanUsername = username?.trim() || email.split('@')[0];
     const pass = password || 'Default@123';
 
@@ -41,7 +41,6 @@ export const addEmployee = async (req, res) => {
       shift: shift || '',
       allocatedMachine: allocatedMachine || '',
       username: cleanUsername,
-      password: pass,
     });
 
     // Also sync login account into User model if not already present

@@ -49,6 +49,64 @@ export const seedDatabase = async () => {
       console.log('✅ [Database Seed] Default Administrator account verified.');
     }
 
+    // Seed Demo Factory Manager if not present
+    const managerEmail = 'manager@smartoil.com';
+    const managerExists = await User.findOne({ email: managerEmail });
+    if (!managerExists) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('Manager@123', salt);
+      await User.create({
+        email: managerEmail,
+        username: 'manager',
+        password: hashedPassword,
+        name: 'Suresh Kumar (Plant Manager)',
+        role: 'Factory Manager',
+        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&q=80',
+        department: 'Plant Operations & Extraction',
+        status: 'Active',
+      });
+      await Employee.create({
+        id: 'EMP-02',
+        name: 'Suresh Kumar (Plant Manager)',
+        role: 'Factory Manager',
+        email: managerEmail,
+        dept: 'Plant Operations & Extraction',
+        shift: 'Morning Shift (06:00 - 14:00)',
+        allocatedMachine: 'Extraction Line Control Station',
+        username: 'manager',
+      }).catch(() => {});
+      console.log('✅ [Database Seed] Factory Manager account verified.');
+    }
+
+    // Seed Demo Factory Staff / Operator if not present
+    const staffEmail = 'operator@smartoil.com';
+    const staffExists = await User.findOne({ email: staffEmail });
+    if (!staffExists) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('Operator@123', salt);
+      await User.create({
+        email: staffEmail,
+        username: 'operator',
+        password: hashedPassword,
+        name: 'Karthik Raja (Expeller Tech)',
+        role: 'Factory Staff',
+        avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=150&q=80',
+        department: 'Cold Press Line #1',
+        status: 'Active',
+      });
+      await Employee.create({
+        id: 'EMP-03',
+        name: 'Karthik Raja (Expeller Tech)',
+        role: 'Factory Staff',
+        email: staffEmail,
+        dept: 'Cold Press Line #1',
+        shift: 'General Shift (08:00 - 17:00)',
+        allocatedMachine: 'Mara Chekku Press Unit #3',
+        username: 'operator',
+      }).catch(() => {});
+      console.log('✅ [Database Seed] Factory Staff account verified.');
+    }
+
     // 3. Seed Initial Employee if not present
     const empExists = await Employee.findOne({
       $or: [{ id: 'EMP-01' }, { email: adminEmail }],

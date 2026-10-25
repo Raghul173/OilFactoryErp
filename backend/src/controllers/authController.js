@@ -164,7 +164,7 @@ export const registerCredentials = async (req, res) => {
     });
 
     // Also reflect in Employee roster if not already present
-    const empId = `EMP-${Math.floor(100 + Math.random() * 900)}`;
+    const empId = `EMP-${Date.now().toString().slice(-4)}`;
     await Employee.create({
       id: empId,
       name: newUser.name,
@@ -174,7 +174,6 @@ export const registerCredentials = async (req, res) => {
       shift: shift || '',
       allocatedMachine: allocatedMachine || '',
       username: newUser.username,
-      password: password,
     }).catch(e => console.warn('Employee link note:', e.message));
 
     // Broadcast live event if Socket.io exists

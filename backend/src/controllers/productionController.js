@@ -29,7 +29,7 @@ export const addBatch = async (req, res) => {
 
     const seedKg = Number(rawSeedWeightKg) > 0 ? Number(rawSeedWeightKg) : Math.round(qty * 2.35);
 
-    const batchId = `BATCH-${Math.floor(100 + Math.random() * 900)}`;
+    const batchId = `PRD-${Date.now().toString().slice(-6)}`;
     const newBatch = await Production.create({
       id: batchId,
       oilType,
