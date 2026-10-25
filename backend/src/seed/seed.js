@@ -24,7 +24,11 @@ export const seedDatabase = async () => {
     ];
 
     for (const tank of initialInventory) {
-      await Inventory.findOneAndUpdate({ id: tank.id }, { $setOnInsert: tank }, { upsert: true });
+      await Inventory.findOneAndUpdate(
+        { id: tank.id },
+        { $set: { name: tank.name, capacityLiters: tank.capacityLiters, minAlert: tank.minAlert, currentLiters: tank.currentLiters } },
+        { upsert: true }
+      );
     }
 
     // 2. Seed Administrator User if not present
