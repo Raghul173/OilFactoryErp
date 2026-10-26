@@ -171,12 +171,14 @@ def main():
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
     parser = argparse.ArgumentParser(description="Train and run Oil Factory Linear Regression model")
-    parser.add_argument("--oil", type=str, default="Groundnut Oil", help="Oil Variety (e.g., Groundnut Oil)")
+    parser.add_argument("--oil", nargs="+", default=["Groundnut", "Oil"], help="Oil Variety (e.g., Groundnut Oil)")
     parser.add_argument("--seeds", type=float, default=2000.0, help="Raw Seed Weight in Kilograms")
     parser.add_argument("--json", action="store_true", help="Output result strictly in JSON format for backend API integration")
     args = parser.parse_args()
 
-    result = predict_yield(args.oil, args.seeds)
+    oil_name = " ".join(args.oil) if isinstance(args.oil, list) else str(args.oil)
+    oil_name = oil_name.strip("\"'")
+    result = predict_yield(oil_name, args.seeds)
 
     if args.json:
         print(json.dumps(result))

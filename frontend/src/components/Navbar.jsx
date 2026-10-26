@@ -107,15 +107,15 @@ export const Navbar = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 shadow-xs px-4 sm:px-6 py-3.5 flex items-center justify-between transition-colors duration-300 font-sans">
+    <header className="sticky top-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 shadow-xs px-4 sm:px-6 py-3.5 flex items-center justify-between transition-colors duration-300 font-sans print:hidden">
       {/* Brand & System Title */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center justify-center w-10 h-10 bg-white rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-1 overflow-hidden shrink-0">
+        <div className="flex items-center justify-center w-10 h-10 bg-white rounded-2xl css3-rounded-card border border-slate-200 dark:border-slate-700 shadow-sm p-1 overflow-hidden shrink-0">
           <img src={logoImg} alt="Oil Logo" className="w-full h-full object-contain" />
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-black tracking-tight text-slate-900 dark:text-white leading-none">
+            <h1 className="text-lg font-black tracking-tight text-slate-900 dark:text-white css3-text-shadow-subtle leading-none">
               OilSync <span className="text-blue-600 dark:text-amber-400">ERP</span>
             </h1>
           </div>

@@ -78,7 +78,7 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
   };
 
   return (
-    <aside className="w-64 bg-white dark:bg-slate-950 border-r border-slate-200/80 dark:border-slate-800 flex flex-col justify-between p-4 shrink-0 min-h-[calc(100vh-65px)] transition-colors duration-300 font-sans">
+    <aside className="w-64 bg-white dark:bg-slate-950 border-r border-slate-200/80 dark:border-slate-800 flex flex-col justify-between p-4 shrink-0 min-h-[calc(100vh-65px)] transition-colors duration-300 font-sans print:hidden">
       <div className="space-y-5">
         {/* User Role Card - Neat & Elegant Executive Profile Scope */}
         <div className="p-4 bg-slate-50/80 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs transition-all">

@@ -101,10 +101,10 @@ export const ProductionModule = () => {
   return (
     <div className="space-y-6">
       {/* Module Title */}
-      <div className="p-6 glass-panel rounded-3xl">
+      <div className="p-6 glass-panel rounded-3xl css3-rounded-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white css3-text-shadow-heading flex items-center gap-2">
               <Factory className="w-6 h-6 text-blue-600 dark:text-amber-400" />
               Production Flow & Raw Intake
             </h2>

@@ -5,7 +5,8 @@ import {
   FlaskConical,
   CheckCircle2,
   Calculator,
-  Cpu
+  Cpu,
+  Play
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -120,34 +121,35 @@ export const AiAnalyticsModule = () => {
     }
   }, []);
 
+  // Run calculation ONLY on initial mount once (never on slider/input changes)
   useEffect(() => {
-    calculateMLPrediction(predictSeedKg, predictOilType);
-  }, [predictSeedKg, predictOilType, calculateMLPrediction]);
+    calculateMLPrediction(2000, 'Groundnut Oil');
+  }, [calculateMLPrediction]);
 
   return (
     <div className="font-sans space-y-6">
       {/* ────────────────────────────────────────────── */}
       {/* LINEAR REGRESSION: BATCH YIELD PREDICTOR ONLY */}
       {/* ────────────────────────────────────────────── */}
-      <div className="p-6 sm:p-8 glass-panel rounded-3xl space-y-6">
+      <div className="p-6 sm:p-8 glass-panel rounded-3xl css3-rounded-xl space-y-6">
         {/* Header with Title */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200/80 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-600 dark:bg-amber-500 text-white dark:text-slate-950 rounded-2xl shadow-md">
+            <div className="p-3 bg-blue-600 dark:bg-amber-500 text-white dark:text-slate-950 rounded-2xl css3-rounded-card shadow-md">
               <FlaskConical className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-xl font-black text-slate-900 dark:text-white">
-                  Linear Regression: Batch Yield Predictor
+                <h3 className="text-xl font-black text-slate-900 dark:text-white css3-text-shadow-subtle">
+                  Linear Regression: Batch Yield Simulation
                 </h3>
-                <span className="text-[10px] font-mono font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                <span className="text-[10px] font-mono font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30 px-2.5 py-0.5 rounded-full css3-rounded-pill flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                   OLS Continuous Model
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Predicts exact extracted oil liters from raw seed weight input using historical regression curves ($y = mx + c$).
+                Adjust seeds & oil variety, then click <strong>Run Simulation</strong> to compute yield and log steps in terminal ($y = mx + c$).
               </p>
             </div>
           </div>
@@ -162,8 +164,9 @@ export const AiAnalyticsModule = () => {
             {projectOilTypes.map((type) => (
               <button
                 key={type}
+                type="button"
                 onClick={() => setPredictOilType(type)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`px-4 py-2 rounded-xl css3-rounded-md text-xs font-bold transition-all cursor-pointer ${
                   predictOilType === type
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 scale-[1.02]'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -177,18 +180,27 @@ export const AiAnalyticsModule = () => {
 
         {/* Input Controls & Continuous Prediction Results Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-          {/* Controls (5 Columns) */}
-          <div className="lg:col-span-5 space-y-5 bg-white/70 dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+          {/* HTML5 Form with HTML5 Input Elements (5 Columns) */}
+          <form
+            id="yieldPredictionForm"
+            onSubmit={(e) => {
+              e.preventDefault();
+              calculateMLPrediction(predictSeedKg, predictOilType);
+            }}
+            className="lg:col-span-5 space-y-5 bg-white/70 dark:bg-slate-900/60 p-5 rounded-2xl css3-rounded-card border border-slate-200/80 dark:border-slate-800 shadow-xs"
+          >
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                <label htmlFor="seedRangeInput" className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   Input Raw Seed Weight
-                </span>
-                <span className="text-sm font-black font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-3 py-1 rounded-xl">
+                </label>
+                <span className="text-sm font-black font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-3 py-1 rounded-xl css3-rounded-md">
                   {predictSeedKg.toLocaleString()} kg
                 </span>
               </div>
+              {/* HTML5 Range Input */}
               <input
+                id="seedRangeInput"
                 type="range"
                 min="200"
                 max="10000"
@@ -204,39 +216,63 @@ export const AiAnalyticsModule = () => {
               </div>
             </div>
 
-            {/* Direct Number Input */}
+            {/* HTML5 Direct Number Input */}
             <div className="flex items-center gap-3">
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+              <label htmlFor="seedExactNumber" className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                 Or type exact kg:
-              </span>
+              </label>
               <input
+                id="seedExactNumber"
                 type="number"
                 min="10"
                 max="50000"
+                step="10"
+                required
                 value={predictSeedKg}
                 onChange={(e) => setPredictSeedKg(Math.max(1, Number(e.target.value)))}
-                className="w-32 px-3 py-1.5 text-xs font-bold font-mono bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-hidden focus:border-blue-500 text-slate-900 dark:text-white"
+                className="w-32 px-3 py-1.5 text-xs font-bold font-mono bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl css3-rounded-md focus:outline-hidden focus:border-blue-500 text-slate-900 dark:text-white"
               />
               <span className="text-xs text-slate-400 font-semibold">kg</span>
             </div>
 
-            {/* Linear Regression Formula Badge */}
+            {/* Run Simulation Action Button */}
+            <button
+              type="submit"
+              disabled={loadingPredict}
+              className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white text-xs font-black uppercase tracking-wider rounded-xl css3-rounded-md transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 cursor-pointer"
+            >
+              <Play className="w-4 h-4 fill-white" />
+              <span>{loadingPredict ? 'Calculating in Terminal...' : 'Run Simulation'}</span>
+            </button>
+
+            {/* Linear Regression Formula Badge with Step-by-Step Calculation */}
             {mlYieldResult?.formula && (
-              <div className="p-3 bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200/60 dark:border-purple-800/40 rounded-xl">
-                <span className="text-[10px] uppercase font-bold text-purple-600 dark:text-purple-400 block mb-0.5">
-                  Trained Linear Regression Model Equation:
-                </span>
-                <code className="text-xs font-mono font-bold text-purple-900 dark:text-purple-300">
+              <div className="p-3.5 bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/50 rounded-xl css3-rounded-md space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold text-purple-600 dark:text-purple-400 block">
+                    Trained Model Formula:
+                  </span>
+                  <span className="text-[9px] font-mono font-bold bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full">
+                    OLS Fit
+                  </span>
+                </div>
+                <code className="text-xs font-mono font-bold text-purple-900 dark:text-purple-200 block">
                   {mlYieldResult.formula}
                 </code>
+                <div className="text-[11px] font-mono text-purple-800/80 dark:text-purple-300/80 pt-1 border-t border-purple-200/60 dark:border-purple-800/30">
+                  <span>Calculation: </span>
+                  <span className="font-bold">
+                    ({Number(mlYieldResult.slope || 0.422).toFixed(3)} × {predictSeedKg}) {Number(mlYieldResult.intercept) >= 0 ? '+' : '-'} {Math.abs(Number(mlYieldResult.intercept || 2.3)).toFixed(1)} = <span className="text-blue-600 dark:text-amber-400 font-extrabold">{mlYieldResult.predictedLiters} Liters</span>
+                  </span>
+                </div>
               </div>
             )}
-          </div>
+          </form>
 
           {/* Results Summary Cards & Calibration Curve (7 Columns) */}
           <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Metric 1: Continuous Output in Liters */}
-            <div className="p-5 bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-2xl shadow-lg relative overflow-hidden">
+            {/* Metric 1: Continuous Output in Liters with CSS3 Glow Text Shadow */}
+            <div className="p-5 bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-2xl css3-rounded-card shadow-lg relative overflow-hidden">
               <div className="absolute right-2 -bottom-2 opacity-10">
                 <Calculator className="w-24 h-24" />
               </div>
@@ -244,7 +280,7 @@ export const AiAnalyticsModule = () => {
                 Predicted Extracted Oil Volume
               </span>
               <div className="flex items-baseline gap-2 mt-1">
-                <h4 className="text-3xl font-black font-mono">
+                <h4 className="text-3xl font-black font-mono css3-text-shadow-glow">
                   {mlYieldResult?.predictedLiters?.toLocaleString() || '---'}
                 </h4>
                 <span className="text-lg font-bold text-blue-200">Liters</span>
