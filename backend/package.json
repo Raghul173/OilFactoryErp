@@ -8,6 +8,7 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "seed": "node src/seed/seed.js",
+    "sync:atlas": "node src/scripts/syncLocalToAtlas.js",
     "reset-db": "node src/seed/reset.js"
   },
   "dependencies": {

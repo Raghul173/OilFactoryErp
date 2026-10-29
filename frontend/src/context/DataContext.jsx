@@ -174,6 +174,19 @@ export const DataProvider = ({ children }) => {
       }
     };
 
+    const handleEmployeeUpdated = (data) => {
+      if (user?.role === 'Factory Staff') return;
+      if (data?.employee) {
+        setEmployees(prev =>
+          prev.map(emp =>
+            (emp.id === data.employee.id || emp.rawId === data.employee.id || emp._id === data.employee._id || (emp.email && emp.email === data.employee.email))
+              ? { ...emp, ...data.employee }
+              : emp
+          )
+        );
+      }
+    };
+
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
     socket.on('inventory:sync', handleInventorySync);
@@ -183,6 +196,7 @@ export const DataProvider = ({ children }) => {
     socket.on('supplier:added', handleSupplierAdded);
     socket.on('employee:added', handleEmployeeAdded);
     socket.on('employee:removed', handleEmployeeRemoved);
+    socket.on('employee:updated', handleEmployeeUpdated);
 
     if (socket.connected) {
       setIsLiveConnected(true);
@@ -198,8 +212,9 @@ export const DataProvider = ({ children }) => {
       socket.off('supplier:added', handleSupplierAdded);
       socket.off('employee:added', handleEmployeeAdded);
       socket.off('employee:removed', handleEmployeeRemoved);
+      socket.off('employee:updated', handleEmployeeUpdated);
     };
-  }, [refreshAllData]);
+  }, [refreshAllData, user?.role]);
 
   // Action: Add Production Entry & Automatically Increase Inventory Stock
   const addProduction = async ({ oilType, quantityLiters, rawSeedWeightKg, details }) => {
@@ -337,10 +352,16 @@ export const DataProvider = ({ children }) => {
   };
 
   // Action: Update Employee Attendance
-  const updateAttendance = (id, attendance) => {
+  const updateAttendance = async (id, attendance) => {
     setEmployees(prev =>
       prev.map(emp => (emp.id === id || emp.rawId === id || emp._id === id) ? { ...emp, attendance } : emp)
     );
+
+    try {
+      await employeeService.updateAttendance(id, attendance);
+    } catch (err) {
+      console.warn('Backend attendance update error:', err.response?.data?.message || err.message);
+    }
   };
 
   return (

@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
-  Droplets, Activity, BrainCircuit, Database, Sun, Moon,
-  User, Lock, Eye, EyeOff, ArrowRight, CheckCircle, Send,
-  Mail
+  Activity, BrainCircuit, Database, Sun, Moon,
+  User, Lock, Eye, EyeOff, ArrowRight, CheckCircle, Send
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 

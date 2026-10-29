@@ -5,7 +5,6 @@ import {
   FlaskConical,
   CheckCircle2,
   Calculator,
-  Cpu,
   Play
 } from 'lucide-react';
 import {

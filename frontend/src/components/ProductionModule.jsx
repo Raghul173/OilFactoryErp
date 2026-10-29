@@ -24,7 +24,7 @@ const PROJECT_OILS = [
 ];
 
 export const ProductionModule = () => {
-  const { inventory, productionLogs, addProduction } = useData();
+  const { productionLogs, addProduction } = useData();
 
   const [oilType, setOilType] = useState('Groundnut Oil');
   const [rawSeedWeightKg, setRawSeedWeightKg] = useState('');

@@ -28,23 +28,28 @@ export const addSale = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Quantity must be greater than zero' });
     }
 
-    // 1. Verify Storage Tank Inventory Availability BEFORE creating the sale
-    const tank = await Inventory.findOne({ name: oilType });
-    if (!tank) {
-      return res.status(404).json({ success: false, message: `Storage tank for ${oilType} not found.` });
-    }
+    // 1. Deduct Inventory Stock Atomically to Prevent Race Conditions & Over-selling
+    const updatedTank = await Inventory.findOneAndUpdate(
+      { name: oilType, currentLiters: { $gte: qty } },
+      { $inc: { currentLiters: -qty } },
+      { new: true, runValidators: true }
+    );
 
-    if (tank.currentLiters < qty) {
+    if (!updatedTank) {
+      const currentTank = await Inventory.findOne({ name: oilType });
+      if (!currentTank) {
+        return res.status(404).json({ success: false, message: `Storage tank for ${oilType} not found.` });
+      }
       return res.status(400).json({
         success: false,
-        message: `Insufficient inventory for ${oilType}. Current stock is ${tank.currentLiters}L, but ${qty}L was requested.`,
-        availableStock: tank.currentLiters,
+        message: `Insufficient inventory for ${oilType}. Current stock is ${currentTank.currentLiters}L, but ${qty}L was requested.`,
+        availableStock: currentTank.currentLiters,
         requestedStock: qty,
       });
     }
 
     // 2. Generate Collision-Proof Sequential Timestamp ID
-    const orderId = `ORD-${Date.now().toString().slice(-6)}`;
+    const orderId = `ORD-${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
     const newSale = await Sales.create({
       id: orderId,
       orderType: orderType || 'Retail Customer',
@@ -55,11 +60,7 @@ export const addSale = async (req, res) => {
       date: new Date().toISOString().split('T')[0],
     });
 
-    // 3. Deduct Inventory Stock Safely
-    tank.currentLiters = Math.max(0, tank.currentLiters - qty);
-    const updatedTank = await tank.save();
-
-    // 4. Broadcast real-time Socket.io events
+    // 3. Broadcast real-time Socket.io events
     const io = req.app.get('io');
     if (io) {
       io.emit('sales:added', { sale: newSale });
@@ -68,7 +69,7 @@ export const addSale = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `Sale recorded. Deducted ${qty}L from ${oilType}. Remaining stock: ${tank.currentLiters}L.`,
+      message: `Sale recorded. Deducted ${qty}L from ${oilType}. Remaining stock: ${updatedTank.currentLiters}L.`,
       sale: newSale,
       updatedInventory: updatedTank,
     });

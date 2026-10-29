@@ -15,7 +15,7 @@ router.post('/login', login);
 router.post('/google', googleAuth);
 router.get('/accounts-pool', getAccountsPool);
 router.post('/register-credentials', authenticateToken, requireRole(['Administrator']), registerCredentials);
-router.put('/profile', updateProfile);
+router.put('/profile', authenticateToken, updateProfile);
 router.get('/me', authenticateToken, getMe);
 
 export default router;

@@ -291,8 +291,12 @@ export const AuthProvider = ({ children }) => {
     }
 
     // Strictly verify password!
-    if (matched.password && matched.password !== password) {
-      throw new Error('Invalid password. Please check your credentials.');
+    if (matched.password) {
+      if (matched.password !== password) {
+        throw new Error('Invalid password. Please check your credentials.');
+      }
+    } else {
+      throw new Error('Cannot authenticate offline without an active backend connection. Please ensure the backend server is running.');
     }
 
     const customMatch = customProfiles[normalizedId];

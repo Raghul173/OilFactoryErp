@@ -5,7 +5,7 @@ const getApiBaseUrl = () => {
     return import.meta.env.VITE_API_URL;
   }
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return 'https://oil-factory-management.onrender.com/api';
+    return 'https://smartoil-erp-backend.onrender.com/api';
   }
   return 'http://localhost:5000/api';
 };
@@ -82,6 +82,7 @@ export const employeeService = {
   getEmployees: () => apiClient.get('/employees'),
   addEmployee: (data) => apiClient.post('/employees', data),
   removeEmployee: (id) => apiClient.delete(`/employees/${id}`),
+  updateAttendance: (id, attendance) => apiClient.patch(`/employees/${id}/attendance`, { attendance }),
 };
 
 // Analytics Services

@@ -12,7 +12,6 @@ import {
   Sparkles,
   Search,
   KeyRound,
-  Building2,
   Briefcase,
   UserCheck,
   Eye,
@@ -22,7 +21,7 @@ import {
 
 export const EmployeeModule = () => {
   const { employees, addEmployee, removeEmployee } = useData();
-  const { user, registerNewCredentials, removeAccountCredentials } = useAuth();
+  const { user, removeAccountCredentials } = useAuth();
   const isAdmin = user?.role === 'Administrator';
   const isFactoryManager = user?.role === 'Factory Manager';
   const isStaff = user?.role === 'Factory Staff';

@@ -192,18 +192,24 @@ export const updateProfile = async (req, res) => {
     const { name, email, department, avatar } = req.body;
     const userId = req.user?._id;
 
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    if (email && email.toLowerCase().trim() !== req.user?.email) {
+      const existing = await User.findOne({ email: email.toLowerCase().trim(), _id: { $ne: userId } });
+      if (existing) {
+        return res.status(400).json({ success: false, message: 'This email is already in use by another account' });
+      }
+    }
+
     const updateFields = {};
-    if (name) updateFields.name = name;
+    if (name) updateFields.name = name.trim();
     if (email) updateFields.email = email.toLowerCase().trim();
-    if (department) updateFields.department = department;
+    if (department) updateFields.department = department.trim();
     if (avatar) updateFields.avatar = avatar;
 
-    let updatedUser;
-    if (userId) {
-      updatedUser = await User.findByIdAndUpdate(userId, updateFields, { new: true }).select('-password');
-    } else if (email) {
-      updatedUser = await User.findOneAndUpdate({ email: email.toLowerCase().trim() }, updateFields, { new: true }).select('-password');
-    }
+    const updatedUser = await User.findByIdAndUpdate(userId, updateFields, { new: true, runValidators: true }).select('-password');
 
     if (!updatedUser) {
       return res.status(404).json({ success: false, message: 'User not found' });
