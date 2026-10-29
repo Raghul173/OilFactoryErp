@@ -2,46 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
-import { LogOut, Sun, Moon, UserCheck, Edit3, Bell, AlertTriangle, Camera, Upload } from 'lucide-react';
+import { LogOut, Sun, Moon, UserCheck, Edit3, Bell, AlertTriangle, User } from 'lucide-react';
 import logoImg from '../assets/logo.png';
-
-// Helper to compress uploaded images to lightweight 256x256 data URLs (prevents localStorage quota errors)
-const compressAvatarImage = (file, maxWidth = 256, maxHeight = 256, quality = 0.85) => {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        const compressed = canvas.toDataURL('image/jpeg', quality);
-        resolve(compressed);
-      };
-      img.onerror = () => resolve(event.target.result);
-    };
-    reader.onerror = () => resolve('');
-  });
-};
 
 export const Navbar = () => {
   const { user, logout, updateUserProfile } = useAuth();
@@ -55,8 +17,6 @@ export const Navbar = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [department, setDepartment] = useState(user?.department || 'Operations');
-  const [avatar, setAvatar] = useState(user?.avatar || '');
   const [savedNotice, setSavedNotice] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -65,35 +25,14 @@ export const Navbar = () => {
     if (user) {
       setName(user.name || '');
       setEmail(user.email || '');
-      setDepartment(user.department || 'Operations');
-      setAvatar(user.avatar || '');
     }
   }, [user, showEditModal]);
-
-  // Preset avatar choices
-  const presetAvatars = [
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
-    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80',
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
-    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80',
-    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80'
-  ];
-
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const compressedDataUrl = await compressAvatarImage(file);
-      if (compressedDataUrl) {
-        setAvatar(compressedDataUrl);
-      }
-    }
-  };
 
   const handleProfileSave = async (e) => {
     e.preventDefault();
     setIsSaving(true);
     try {
-      await updateUserProfile({ name, email, department, avatar });
+      await updateUserProfile({ name, email });
       setSavedNotice(true);
       setTimeout(() => {
         setSavedNotice(false);
@@ -227,19 +166,15 @@ export const Navbar = () => {
               onClick={() => {
                 setName(user.name);
                 setEmail(user.email);
-                setDepartment(user.department || 'Operations');
-                setAvatar(user.avatar || '');
                 setShowEditModal(true);
               }}
               className="flex items-center gap-2.5 p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all text-left cursor-pointer group"
-              title="Click to edit your profile photo and details"
+              title="Click to edit profile details"
             >
               <div className="relative">
-                <img
-                  src={user.avatar}
-                  alt={user.name}
-                  className="w-8 h-8 rounded-full border border-blue-200 dark:border-amber-500/30 object-cover shadow-xs"
-                />
+                <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-amber-500/10 border border-blue-200 dark:border-amber-500/30 flex items-center justify-center text-blue-700 dark:text-amber-400 font-bold text-xs shadow-xs">
+                  <User className="w-4 h-4" />
+                </div>
                 <div className="absolute -bottom-1 -right-1 bg-blue-600 dark:bg-amber-500 text-white dark:text-slate-950 p-0.5 rounded-full shadow-xs">
                   <Edit3 className="w-2.5 h-2.5" />
                 </div>
@@ -274,66 +209,24 @@ export const Navbar = () => {
       {showEditModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-slate-950/80 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
-            <div className="flex items-center gap-4 pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="relative group">
-                <img
-                  src={avatar || user.avatar}
-                  alt="Avatar Preview"
-                  className="w-14 h-14 rounded-full border-2 border-blue-600 dark:border-amber-500 object-cover shadow-md"
-                />
-                <label className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white">
-                  <Camera className="w-4 h-4" />
-                  <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-                </label>
+            <div className="flex items-center gap-3.5 pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-amber-500/10 border border-blue-200 dark:border-amber-500/30 flex items-center justify-center text-blue-600 dark:text-amber-400 shadow-sm shrink-0">
+                <User className="w-6 h-6" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Edit Profile Details</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Update display photo, name, email & department</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Update display name & email address</p>
               </div>
             </div>
 
             {savedNotice && (
               <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-xl flex items-center gap-2">
                 <UserCheck className="w-4 h-4" />
-                <span>Profile photo & details updated successfully!</span>
+                <span>Profile details updated successfully!</span>
               </div>
             )}
 
             <form onSubmit={handleProfileSave} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase mb-1.5">
-                  Change Profile Photo
-                </label>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <label className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors cursor-pointer border border-slate-200 dark:border-slate-700">
-                      <Upload className="w-3.5 h-3.5 text-blue-600 dark:text-amber-400" />
-                      <span>Upload Photo from Device</span>
-                      <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-                    </label>
-                  </div>
-
-                  {/* Preset Avatars */}
-                  <div className="flex items-center gap-2 pt-1">
-                    <span className="text-[10px] text-slate-400 font-semibold uppercase">Presets:</span>
-                    <div className="flex gap-2">
-                      {presetAvatars.map((url, idx) => (
-                        <button
-                          type="button"
-                          key={idx}
-                          onClick={() => setAvatar(url)}
-                          className={`w-7 h-7 rounded-full overflow-hidden border-2 transition-all cursor-pointer ${
-                            avatar === url ? 'border-blue-600 dark:border-amber-500 scale-110 shadow-md' : 'border-transparent opacity-70 hover:opacity-100'
-                          }`}
-                        >
-                          <img src={url} alt="Preset" className="w-full h-full object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase mb-1">
                   Display Name
@@ -343,7 +236,7 @@ export const Navbar = () => {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white font-semibold focus:outline-none"
+                  className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-amber-500"
                 />
               </div>
 
@@ -356,19 +249,7 @@ export const Navbar = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white font-semibold focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase mb-1">
-                  Department / Unit
-                </label>
-                <input
-                  type="text"
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none"
+                  className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-amber-500"
                 />
               </div>
 
@@ -376,7 +257,7 @@ export const Navbar = () => {
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-xl text-xs cursor-pointer"
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-xl text-xs cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                 >
                   Cancel
                 </button>

@@ -11,23 +11,31 @@ export const SupplierModule = () => {
   const [quantity, setQuantity] = useState('');
   const [totalCost, setTotalCost] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!supplierName || !quantity || !totalCost) return;
+    if (isSubmitting || !supplierName || !quantity || !totalCost) return;
 
-    addSupplier({
-      supplierName,
-      materialItem,
-      quantity,
-      totalCost: Number(totalCost)
-    });
+    setIsSubmitting(true);
+    try {
+      await addSupplier({
+        supplierName,
+        materialItem,
+        quantity,
+        totalCost: Number(totalCost)
+      });
 
-    setSuccessMsg(`Success! Saved raw material purchase from ${supplierName}.`);
-    setSupplierName('');
-    setQuantity('');
-    setTotalCost('');
-    setTimeout(() => setSuccessMsg(''), 4000);
+      setSuccessMsg(`Success! Saved raw material purchase from ${supplierName}.`);
+      setSupplierName('');
+      setQuantity('');
+      setTotalCost('');
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err) {
+      console.error('Failed to save supplier intake:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // 1. Pie Chart Data: Procurement Expenditure Share by Material Item
@@ -133,10 +141,13 @@ export const SupplierModule = () => {
           <div className="lg:col-span-4 flex justify-end pt-2">
             <button
               type="submit"
-              className="flex items-center gap-2 px-5 py-3 bg-blue-600 dark:bg-amber-500 hover:bg-blue-700 dark:hover:bg-amber-400 text-white dark:text-slate-950 font-bold rounded-xl text-xs transition-all shadow-md cursor-pointer"
+              disabled={isSubmitting}
+              className={`flex items-center gap-2 px-5 py-3 bg-blue-600 dark:bg-amber-500 hover:bg-blue-700 dark:hover:bg-amber-400 text-white dark:text-slate-950 font-bold rounded-xl text-xs transition-all shadow-md ${
+                isSubmitting ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+              }`}
             >
               <Plus className="w-4 h-4" />
-              <span>Save Supplier Purchase Entry</span>
+              <span>{isSubmitting ? 'Saving Purchase...' : 'Save Supplier Purchase Entry'}</span>
             </button>
           </div>
         </form>

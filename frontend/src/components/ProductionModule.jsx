@@ -33,6 +33,7 @@ export const ProductionModule = () => {
   const [successMsg, setSuccessMsg] = useState('');
   const [filterOil, setFilterOil] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Total Production Aggregate KPIs
   const aggregateMetrics = useMemo(() => {
@@ -59,26 +60,34 @@ export const ProductionModule = () => {
     });
   }, [productionLogs, filterOil, searchQuery]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!quantityLiters || Number(quantityLiters) <= 0) return;
+    if (isSubmitting || !quantityLiters || Number(quantityLiters) <= 0) return;
 
     const seedKg = Number(rawSeedWeightKg) > 0 ? Number(rawSeedWeightKg) : Math.round(Number(quantityLiters) * 2.44);
+    const qty = Number(quantityLiters);
 
-    addProduction({
-      oilType,
-      rawSeedWeightKg: seedKg,
-      quantityLiters: Number(quantityLiters),
-      details: details || `${oilType} Production Batch`,
-    });
+    setIsSubmitting(true);
+    try {
+      await addProduction({
+        oilType,
+        rawSeedWeightKg: seedKg,
+        quantityLiters: qty,
+        details: details || `${oilType} Production Batch`,
+      });
 
-    setSuccessMsg(
-      `Recorded Batch: Added ${quantityLiters} Liters of ${oilType} (from ${seedKg.toLocaleString()} kg seed intake) to inventory.`
-    );
-    setRawSeedWeightKg('');
-    setQuantityLiters('');
-    setDetails('');
-    setTimeout(() => setSuccessMsg(''), 4500);
+      setSuccessMsg(
+        `Recorded Batch: Added ${qty.toLocaleString()} Liters of ${oilType} (from ${seedKg.toLocaleString()} kg seed intake) to inventory.`
+      );
+      setRawSeedWeightKg('');
+      setQuantityLiters('');
+      setDetails('');
+      setTimeout(() => setSuccessMsg(''), 4500);
+    } catch (err) {
+      console.error('Failed to record production batch:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Pie Chart Data: Production Volume Share by Category
@@ -280,10 +289,13 @@ export const ProductionModule = () => {
             </div>
             <button
               type="submit"
-              className="flex items-center gap-2 px-6 py-3 bg-blue-600 dark:bg-amber-500 hover:bg-blue-700 dark:hover:bg-amber-400 text-white dark:text-slate-950 font-bold rounded-xl text-xs transition-all shadow-md cursor-pointer"
+              disabled={isSubmitting}
+              className={`flex items-center gap-2 px-6 py-3 bg-blue-600 dark:bg-amber-500 hover:bg-blue-700 dark:hover:bg-amber-400 text-white dark:text-slate-950 font-bold rounded-xl text-xs transition-all shadow-md ${
+                isSubmitting ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+              }`}
             >
               <Plus className="w-4 h-4" />
-              <span>Submit Batch & Update Inventory</span>
+              <span>{isSubmitting ? 'Recording Batch...' : 'Submit Batch & Update Inventory'}</span>
             </button>
           </div>
         </form>

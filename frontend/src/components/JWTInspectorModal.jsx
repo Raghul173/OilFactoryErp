@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { KeyRound, X } from 'lucide-react';
+import { KeyRound, X, User } from 'lucide-react';
 
 export const JWTInspectorModal = () => {
   const { jwtToken, user, showJWTModal, setShowJWTModal } = useAuth();
@@ -45,7 +45,9 @@ export const JWTInspectorModal = () => {
         {/* User Identity Banner */}
         <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={user?.avatar} alt={user?.name} className="w-10 h-10 rounded-full border border-blue-200 object-cover" />
+            <div className="w-10 h-10 rounded-xl bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-bold">
+              <User className="w-5 h-5" />
+            </div>
             <div>
               <p className="text-sm font-bold text-slate-900">{user?.name}</p>
               <p className="text-xs text-slate-500">{user?.email}</p>

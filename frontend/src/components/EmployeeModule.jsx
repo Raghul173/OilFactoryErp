@@ -16,15 +16,17 @@ import {
   Briefcase,
   UserCheck,
   Eye,
-  EyeOff
+  EyeOff,
+  AlertCircle
 } from 'lucide-react';
 
 export const EmployeeModule = () => {
   const { employees, addEmployee, removeEmployee } = useData();
-  const { user, registerNewCredentials } = useAuth();
+  const { user, registerNewCredentials, removeAccountCredentials } = useAuth();
   const isAdmin = user?.role === 'Administrator';
-  const isManager = user?.role === 'Factory Manager';
-  const canManageAccounts = isAdmin || isManager;
+  const isFactoryManager = user?.role === 'Factory Manager';
+  const isStaff = user?.role === 'Factory Staff';
+  const canManageAccounts = isAdmin;
 
   // Entry Form Modal State
   const [showModal, setShowModal] = useState(false);
@@ -35,6 +37,8 @@ export const EmployeeModule = () => {
   const [useCustomPassword, setUseCustomPassword] = useState(false);
   const [customPassword, setCustomPassword] = useState('');
   const [showPasswordText, setShowPasswordText] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,46 +52,85 @@ export const EmployeeModule = () => {
   const [copied, setCopied] = useState(false);
   const [copiedCardId, setCopiedCardId] = useState(null);
 
+  // Guard: Factory Staff are strictly prohibited from viewing users page
+  if (isStaff || (!isAdmin && !isFactoryManager)) {
+    return (
+      <div className="p-8 sm:p-12 glass-panel rounded-3xl text-center space-y-4 max-w-lg mx-auto my-12 border border-rose-200 dark:border-rose-900/40">
+        <div className="w-16 h-16 bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+        <div className="space-y-1">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-3 py-1 rounded-full border border-rose-200 dark:border-rose-800">
+            Confidential Directory
+          </span>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white pt-2">
+            Access Restricted
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Factory Staff do not have permission to view or manage user accounts in the Oil Factory ERP. Please contact your Factory Manager or Administrator for assistance.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Form Submission
-  const handleAddSubmit = (e) => {
+  const handleAddSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim()) return;
+    setFormError('');
 
-    // Generate unique username and password
-    const cleanName = name.replace(/[^a-zA-Z]/g, '');
-    const prefix = role === 'Factory Manager' ? 'MGR' : 'EMP';
-    const generatedUsername = `${prefix}_${cleanName || 'User'}`;
-    const generatedPassword = useCustomPassword && customPassword.trim()
-      ? customPassword.trim()
-      : `OilSync@${Math.floor(1000 + Math.random() * 9000)}`;
+    if (!name.trim() || !email.trim()) {
+      setFormError('Please enter both name and email.');
+      return;
+    }
 
-    const newMemberData = {
-      name: name.trim(),
-      email: email.trim(),
-      username: generatedUsername,
-      password: generatedPassword,
-      role,
-      dept: 'Operations',
-      allocatedMachine: allocatedMachine.trim() || 'Factory Floor'
-    };
+    const cleanEmail = email.toLowerCase().trim();
+    if (employees.some(emp => (emp.email || '').toLowerCase().trim() === cleanEmail)) {
+      setFormError(`An employee with email "${email.trim()}" is already registered.`);
+      return;
+    }
 
-    // Register in Auth Context accounts pool
-    registerNewCredentials(newMemberData);
+    setIsSubmitting(true);
 
-    // Register in Data Context roster
-    addEmployee(newMemberData);
+    try {
+      // Generate unique username and password
+      const cleanName = name.replace(/[^a-zA-Z]/g, '');
+      const prefix = role === 'Factory Manager' ? 'MGR' : 'EMP';
+      const generatedUsername = `${prefix}_${cleanName || 'User'}`;
+      const generatedPassword = useCustomPassword && customPassword.trim()
+        ? customPassword.trim()
+        : `OilSync@${Math.floor(1000 + Math.random() * 9000)}`;
 
-    // Show Issued Login Credentials Pass Modal
-    setIssuedCreds(newMemberData);
+      const newMemberData = {
+        name: name.trim(),
+        email: cleanEmail,
+        username: generatedUsername,
+        password: generatedPassword,
+        role,
+        dept: 'Operations',
+        allocatedMachine: allocatedMachine.trim() || 'Factory Floor'
+      };
 
-    // Reset Form
-    setName('');
-    setEmail('');
-    setRole('Factory Staff');
-    setAllocatedMachine('');
-    setUseCustomPassword(false);
-    setCustomPassword('');
-    setShowModal(false);
+      // Register in Data Context & Backend (backend automatically creates user credentials and socket event)
+      await addEmployee(newMemberData);
+
+      // Show Issued Login Credentials Pass Modal
+      setIssuedCreds(newMemberData);
+
+      // Reset Form
+      setName('');
+      setEmail('');
+      setRole('Factory Staff');
+      setAllocatedMachine('');
+      setUseCustomPassword(false);
+      setCustomPassword('');
+      setFormError('');
+      setShowModal(false);
+    } catch (err) {
+      setFormError(err.message || 'Failed to create account.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const copyIssuedToClipboard = () => {
@@ -109,9 +152,13 @@ export const EmployeeModule = () => {
     setAccountToDelete(emp);
   };
 
-  const handleDeleteConfirmed = () => {
+  const handleDeleteConfirmed = async () => {
     if (accountToDelete) {
-      removeEmployee(accountToDelete.id);
+      const targetId = accountToDelete.id || accountToDelete._id || accountToDelete.email;
+      await removeEmployee(targetId);
+      if (removeAccountCredentials) {
+        removeAccountCredentials(accountToDelete.email || targetId);
+      }
       setAccountToDelete(null);
     }
   };
@@ -164,6 +211,21 @@ export const EmployeeModule = () => {
           </button>
         )}
       </div>
+
+      {/* Factory Manager View-Only Notice Banner */}
+      {isFactoryManager && (
+        <div className="p-4 bg-indigo-50/80 dark:bg-purple-950/30 border border-indigo-200/80 dark:border-purple-800/50 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-3 text-indigo-800 dark:text-purple-300">
+            <Eye className="w-5 h-5 shrink-0 text-indigo-600 dark:text-purple-400" />
+            <span>
+              <strong>Factory Manager Scope:</strong> You have view access to all factory staff, accounts, and assigned machines. Only Administrators can create or delete user accounts.
+            </span>
+          </div>
+          <span className="text-[10px] font-extrabold uppercase tracking-wider bg-indigo-100 dark:bg-purple-900/60 text-indigo-800 dark:text-purple-200 px-3 py-1 rounded-xl shrink-0 self-start sm:self-auto">
+            View-Only Access
+          </span>
+        </div>
+      )}
 
       {/* Account Overview Stats (No Attendance) */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -385,6 +447,12 @@ export const EmployeeModule = () => {
             </div>
 
             <form onSubmit={handleAddSubmit} className="space-y-4">
+              {formError && (
+                <div className="p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
               {/* Full Name */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase mb-1">
@@ -509,10 +577,11 @@ export const EmployeeModule = () => {
                 <button
                   type="submit"
                   id="confirm-create-account-btn"
-                  className="px-4 py-2 bg-blue-600 dark:bg-amber-500 text-white dark:text-slate-950 font-bold rounded-xl text-xs shadow-md hover:bg-blue-700 dark:hover:bg-amber-400 transition-colors cursor-pointer flex items-center gap-1.5"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-blue-600 dark:bg-amber-500 disabled:opacity-50 text-white dark:text-slate-950 font-bold rounded-xl text-xs shadow-md hover:bg-blue-700 dark:hover:bg-amber-400 transition-colors cursor-pointer flex items-center gap-1.5"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
-                  <span>Create Account & Issue Pass</span>
+                  <span>{isSubmitting ? 'Creating Account...' : 'Create Account & Issue Pass'}</span>
                 </button>
               </div>
             </form>

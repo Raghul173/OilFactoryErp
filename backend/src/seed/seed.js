@@ -3,7 +3,6 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import User from '../models/User.js';
 import Inventory from '../models/Inventory.js';
-import Employee from '../models/Employee.js';
 import Production from '../models/Production.js';
 import Sales from '../models/Sales.js';
 import Supplier from '../models/Supplier.js';
@@ -14,21 +13,26 @@ export const seedDatabase = async () => {
   try {
     console.log('🌱 [Database Seed] Initializing rich industrial datasets...');
 
-    // 1. Seed Inventory if empty or missing tanks
-    const initialInventory = [
-      { id: 1, name: 'Groundnut Oil', currentLiters: 3200, capacityLiters: 10000, minAlert: 1000 },
-      { id: 2, name: 'Sunflower Oil', currentLiters: 2400, capacityLiters: 8000, minAlert: 800 },
-      { id: 3, name: 'Mustard Oil', currentLiters: 1100, capacityLiters: 6000, minAlert: 500 },
-      { id: 4, name: 'Sesame Oil', currentLiters: 1650, capacityLiters: 5000, minAlert: 400 },
-      { id: 5, name: 'Coconut Oil', currentLiters: 2900, capacityLiters: 7000, minAlert: 1000 },
-    ];
+    // 1. Seed Inventory only if collection is empty
+    const shouldSeedDemo = process.env.SEED_DEMO_DATA === 'true';
+    const invCount = await Inventory.countDocuments();
+    if (invCount === 0) {
+      const initialInventory = [
+        { id: 1, name: 'Groundnut Oil', currentLiters: shouldSeedDemo ? 3200 : 0, capacityLiters: 10000, minAlert: 1000 },
+        { id: 2, name: 'Sunflower Oil', currentLiters: shouldSeedDemo ? 2400 : 0, capacityLiters: 8000, minAlert: 800 },
+        { id: 3, name: 'Mustard Oil', currentLiters: shouldSeedDemo ? 1100 : 0, capacityLiters: 6000, minAlert: 500 },
+        { id: 4, name: 'Sesame Oil', currentLiters: shouldSeedDemo ? 1650 : 0, capacityLiters: 5000, minAlert: 400 },
+        { id: 5, name: 'Coconut Oil', currentLiters: shouldSeedDemo ? 2900 : 0, capacityLiters: 7000, minAlert: 1000 },
+      ];
 
-    for (const tank of initialInventory) {
-      await Inventory.findOneAndUpdate(
-        { id: tank.id },
-        { $set: { name: tank.name, capacityLiters: tank.capacityLiters, minAlert: tank.minAlert, currentLiters: tank.currentLiters } },
-        { upsert: true }
-      );
+      for (const tank of initialInventory) {
+        await Inventory.findOneAndUpdate(
+          { id: tank.id },
+          { $set: { name: tank.name, capacityLiters: tank.capacityLiters, minAlert: tank.minAlert, currentLiters: tank.currentLiters } },
+          { upsert: true }
+        );
+      }
+      console.log('✅ [Database Seed] Initial Inventory tanks initialized.');
     }
 
     // 2. Seed Administrator User if not present
@@ -41,6 +45,7 @@ export const seedDatabase = async () => {
       const hashedPassword = await bcrypt.hash('Raghul@2006', salt);
 
       await User.create({
+        id: 'EMP-01',
         email: adminEmail,
         username: 'Raghul',
         password: hashedPassword,
@@ -48,86 +53,65 @@ export const seedDatabase = async () => {
         role: 'Administrator',
         avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
         department: 'System Architecture & Operations',
+        dept: 'System Architecture & Operations',
+        shift: 'General Shift (08:00 - 17:00)',
+        allocatedMachine: 'Central Command Terminal',
         status: 'Active',
       });
       console.log('✅ [Database Seed] Default Administrator account verified.');
     }
 
-    // Seed Demo Factory Manager if not present
-    const managerEmail = 'manager@smartoil.com';
-    const managerExists = await User.findOne({ email: managerEmail });
-    if (!managerExists) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash('Manager@123', salt);
-      await User.create({
-        email: managerEmail,
-        username: 'manager',
-        password: hashedPassword,
-        name: 'Suresh Kumar (Plant Manager)',
-        role: 'Factory Manager',
-        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&q=80',
-        department: 'Plant Operations & Extraction',
-        status: 'Active',
-      });
-      await Employee.create({
-        id: 'EMP-02',
-        name: 'Suresh Kumar (Plant Manager)',
-        role: 'Factory Manager',
-        email: managerEmail,
-        dept: 'Plant Operations & Extraction',
-        shift: 'Morning Shift (06:00 - 14:00)',
-        allocatedMachine: 'Extraction Line Control Station',
-        username: 'manager',
-      }).catch(() => {});
-      console.log('✅ [Database Seed] Factory Manager account verified.');
-    }
+    // Seed Demo Factory Manager & Staff only if demo seed is requested
+    if (shouldSeedDemo) {
+      const userCount = await User.countDocuments();
+      if (userCount <= 1) {
+      // Seed Demo Factory Manager if not present
+      const managerEmail = 'manager@smartoil.com';
+      const managerExists = await User.findOne({ email: managerEmail });
+      if (!managerExists) {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash('Manager@123', salt);
+        await User.create({
+          id: 'EMP-02',
+          email: managerEmail,
+          username: 'manager',
+          password: hashedPassword,
+          name: 'Suresh Kumar (Plant Manager)',
+          role: 'Factory Manager',
+          avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&q=80',
+          department: 'Plant Operations & Extraction',
+          dept: 'Plant Operations & Extraction',
+          shift: 'Morning Shift (06:00 - 14:00)',
+          allocatedMachine: 'Extraction Line Control Station',
+          status: 'Active',
+        });
+        console.log('✅ [Database Seed] Factory Manager account verified.');
+      }
 
-    // Seed Demo Factory Staff / Operator if not present
-    const staffEmail = 'operator@smartoil.com';
-    const staffExists = await User.findOne({ email: staffEmail });
-    if (!staffExists) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash('Operator@123', salt);
-      await User.create({
-        email: staffEmail,
-        username: 'operator',
-        password: hashedPassword,
-        name: 'Karthik Raja (Expeller Tech)',
-        role: 'Factory Staff',
-        avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=150&q=80',
-        department: 'Cold Press Line #1',
-        status: 'Active',
-      });
-      await Employee.create({
-        id: 'EMP-03',
-        name: 'Karthik Raja (Expeller Tech)',
-        role: 'Factory Staff',
-        email: staffEmail,
-        dept: 'Cold Press Line #1',
-        shift: 'General Shift (08:00 - 17:00)',
-        allocatedMachine: 'Mara Chekku Press Unit #3',
-        username: 'operator',
-      }).catch(() => {});
-      console.log('✅ [Database Seed] Factory Staff account verified.');
+      // Seed Demo Factory Staff / Operator if not present
+      const staffEmail = 'operator@smartoil.com';
+      const staffExists = await User.findOne({ email: staffEmail });
+      if (!staffExists) {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash('Operator@123', salt);
+        await User.create({
+          id: 'EMP-03',
+          email: staffEmail,
+          username: 'operator',
+          password: hashedPassword,
+          name: 'Karthik Raja (Expeller Tech)',
+          role: 'Factory Staff',
+          avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=150&q=80',
+          department: 'Cold Press Line #1',
+          dept: 'Cold Press Line #1',
+          shift: 'General Shift (08:00 - 17:00)',
+          allocatedMachine: 'Mara Chekku Press Unit #3',
+          status: 'Active',
+        });
+        console.log('✅ [Database Seed] Factory Staff account verified.');
+      }
     }
-
-    // 3. Seed Initial Employee if not present
-    const empExists = await Employee.findOne({
-      $or: [{ id: 'EMP-01' }, { email: adminEmail }],
-    });
-    if (!empExists) {
-      await Employee.create({
-        id: 'EMP-01',
-        name: 'Raghul (Administrator)',
-        role: 'Administrator',
-        email: adminEmail,
-        dept: 'System Architecture & Operations',
-        shift: 'General Shift (08:00 - 17:00)',
-        allocatedMachine: 'Central Command Terminal',
-        username: 'Raghul',
-      });
-      console.log('✅ [Database Seed] Initial Employee roster item verified.');
-    }
+  }
 
     // 4. Seed Comprehensive Historical Production Batches (68 Batches across all 5 Oils)
     // Conforms strictly to ICAR (Indian Council of Agricultural Research) & TNAU standards
@@ -221,57 +205,17 @@ export const seedDatabase = async () => {
       { id: 'PRD-COC-14', oilType: 'Coconut Oil', rawSeedWeightKg: 5600, quantityLiters: 3227, details: 'Commercial wholesale production #514', date: '2026-10-23' },
     ];
 
-    for (const batch of productionBatches) {
-      await Production.findOneAndUpdate({ id: batch.id }, { $set: batch }, { upsert: true });
+    // 4. Seed Historical Production Batches ONLY if demo mode is enabled
+    if (shouldSeedDemo) {
+      const prodCount = await Production.countDocuments();
+      if (prodCount === 0) {
+        for (const batch of productionBatches) {
+          await Production.findOneAndUpdate({ id: batch.id }, { $set: batch }, { upsert: true });
+        }
+        console.log(`✅ [Database Seed] Successfully seeded ${productionBatches.length} production batches across all 5 oils.`);
+      }
     }
-    // Remove legacy or uncalibrated test records
-    await Production.deleteMany({ id: { $regex: '^(BATCH-|PRD-WK)' } });
-    console.log(`✅ [Database Seed] Successfully seeded ${productionBatches.length} production batches across all 5 oils.`);
-
-    // 5. Seed Historical Sales Orders (16 Orders powering Demand Forecasting & Depletion Models)
-    const salesOrders = [
-      { id: 'ORD-501', orderType: 'Retail Customer', buyerName: 'FreshMart Supermarket', oilType: 'Groundnut Oil', quantityLiters: 450, totalAmount: 85500, date: '2026-10-10' },
-      { id: 'ORD-502', orderType: 'Wholesale Supplier', buyerName: 'Golden Oils Wholesale', oilType: 'Sunflower Oil', quantityLiters: 1200, totalAmount: 216000, date: '2026-10-11' },
-      { id: 'ORD-503', orderType: 'Retail Customer', buyerName: 'Annapoorna Retail Chain', oilType: 'Mustard Oil', quantityLiters: 300, totalAmount: 51000, date: '2026-10-12' },
-      { id: 'ORD-504', orderType: 'Retail Customer', buyerName: 'Nuts & Spices Mart', oilType: 'Sesame Oil', quantityLiters: 250, totalAmount: 62500, date: '2026-10-13' },
-      { id: 'ORD-505', orderType: 'Wholesale Supplier', buyerName: 'Malabar Traders', oilType: 'Coconut Oil', quantityLiters: 800, totalAmount: 184000, date: '2026-10-14' },
-      { id: 'ORD-506', orderType: 'Retail Customer', buyerName: 'Nature Fresh Organics', oilType: 'Groundnut Oil', quantityLiters: 600, totalAmount: 114000, date: '2026-10-15' },
-      { id: 'ORD-507', orderType: 'Retail Customer', buyerName: 'Sri Krishna Sweets Hub', oilType: 'Sunflower Oil', quantityLiters: 500, totalAmount: 90000, date: '2026-10-16' },
-      { id: 'ORD-508', orderType: 'Retail Customer', buyerName: 'Northern Spices & Pickles', oilType: 'Mustard Oil', quantityLiters: 400, totalAmount: 68000, date: '2026-10-17' },
-      { id: 'ORD-509', orderType: 'Wholesale Supplier', buyerName: 'South India Oil Corporation', oilType: 'Sesame Oil', quantityLiters: 900, totalAmount: 225000, date: '2026-10-18' },
-      { id: 'ORD-510', orderType: 'Wholesale Supplier', buyerName: 'Cochin Export Traders', oilType: 'Coconut Oil', quantityLiters: 1500, totalAmount: 345000, date: '2026-10-19' },
-      { id: 'ORD-511', orderType: 'Retail Customer', buyerName: 'Metro Hypermarket', oilType: 'Groundnut Oil', quantityLiters: 700, totalAmount: 133000, date: '2026-10-20' },
-      { id: 'ORD-512', orderType: 'Retail Customer', buyerName: 'Daily Needs Mart', oilType: 'Sunflower Oil', quantityLiters: 650, totalAmount: 117000, date: '2026-10-21' },
-      { id: 'ORD-513', orderType: 'Retail Customer', buyerName: 'Royal Pickles Co.', oilType: 'Mustard Oil', quantityLiters: 350, totalAmount: 59500, date: '2026-10-21' },
-      { id: 'ORD-514', orderType: 'Retail Customer', buyerName: 'Heritage Foods Store', oilType: 'Sesame Oil', quantityLiters: 400, totalAmount: 100000, date: '2026-10-22' },
-      { id: 'ORD-515', orderType: 'Wholesale Supplier', buyerName: 'Apex Distributing Inc.', oilType: 'Coconut Oil', quantityLiters: 1100, totalAmount: 253000, date: '2026-10-22' },
-      { id: 'ORD-516', orderType: 'Retail Customer', buyerName: 'City Fresh Provisions', oilType: 'Groundnut Oil', quantityLiters: 800, totalAmount: 152000, date: '2026-10-23' },
-    ];
-
-    for (const order of salesOrders) {
-      await Sales.findOneAndUpdate({ id: order.id }, { $set: order }, { upsert: true });
-    }
-    console.log(`✅ [Database Seed] Successfully seeded ${salesOrders.length} sales orders.`);
-
-    // 6. Seed Supplier Raw Material Procurement Intakes
-    const supplierIntakes = [
-      { id: 'SUP-01', supplierName: 'AgriCorp Farmers', materialItem: 'Raw Groundnuts', quantity: '15 Tons', totalCost: 1275000, date: '2026-08-15' },
-      { id: 'SUP-02', supplierName: 'Sunshine Seeds Co.', materialItem: 'Sunflower Seeds', quantity: '12 Tons', totalCost: 1120000, date: '2026-08-16' },
-      { id: 'SUP-03', supplierName: 'Punjab Agro Farms', materialItem: 'Mustard Seeds', quantity: '10 Tons', totalCost: 850000, date: '2026-08-17' },
-      { id: 'SUP-04', supplierName: 'Tirunelveli Farmers Union', materialItem: 'Sesame Seeds', quantity: '10 Tons', totalCost: 1450000, date: '2026-08-18' },
-      { id: 'SUP-05', supplierName: 'Kerala Copra Producers', materialItem: 'Sun-Dried Copra', quantity: '12 Tons', totalCost: 1860000, date: '2026-08-19' },
-      { id: 'SUP-06', supplierName: 'AgriCorp Farmers', materialItem: 'Raw Groundnuts', quantity: '20 Tons', totalCost: 1700000, date: '2026-09-15' },
-      { id: 'SUP-07', supplierName: 'Sunshine Seeds Co.', materialItem: 'Sunflower Seeds', quantity: '15 Tons', totalCost: 1400000, date: '2026-09-18' },
-      { id: 'SUP-08', supplierName: 'Punjab Agro Farms', materialItem: 'Mustard Seeds', quantity: '12 Tons', totalCost: 1020000, date: '2026-09-20' },
-      { id: 'SUP-09', supplierName: 'Tirunelveli Farmers Union', materialItem: 'Sesame Seeds', quantity: '12 Tons', totalCost: 1740000, date: '2026-09-25' },
-      { id: 'SUP-10', supplierName: 'Kerala Copra Producers', materialItem: 'Sun-Dried Copra', quantity: '15 Tons', totalCost: 2325000, date: '2026-10-01' },
-    ];
-
-    for (const intake of supplierIntakes) {
-      await Supplier.findOneAndUpdate({ id: intake.id }, { $set: intake }, { upsert: true });
-    }
-    console.log(`✅ [Database Seed] Successfully seeded ${supplierIntakes.length} supplier procurement intakes.`);
-    console.log('🎉 [Database Seed] Enterprise factory datasets loaded and ready for AI/ML engines!');
+    console.log('🎉 [Database Seed] Enterprise factory setup complete!');
   } catch (err) {
     console.error('⚠️ [Database Seed Error]:', err.message);
   }
@@ -280,6 +224,7 @@ export const seedDatabase = async () => {
 // Allow direct standalone execution via CLI: node src/seed/seed.js or npm run seed
 const isDirectRun = process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('src/seed/seed.js');
 if (isDirectRun) {
+  process.env.SEED_DEMO_DATA = 'true';
   const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/oilfactory';
   console.log(`🌿 [Standalone Seeder] Connecting to MongoDB: ${uri}`);
   mongoose

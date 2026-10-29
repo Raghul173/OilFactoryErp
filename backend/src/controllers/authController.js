@@ -1,7 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-import Employee from '../models/Employee.js';
 
 const generateToken = (user) => {
   const secret = process.env.JWT_SECRET || 'oilsync_enterprise_jwt_secret_key_2026_raghul_secure';
@@ -152,45 +151,29 @@ export const registerCredentials = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    const empId = `EMP-${Date.now().toString().slice(-4)}`;
+
     const newUser = await User.create({
+      id: empId,
       name: name || username,
       email: email.toLowerCase().trim(),
       username: username?.trim() || email.split('@')[0],
       password: hashedPassword,
       role: assignedRole,
-      department: dept || '',
+      department: dept || 'Operations',
+      dept: dept || 'Operations',
+      shift: shift || 'General Shift (08:00 - 17:00)',
+      allocatedMachine: allocatedMachine || 'Factory Floor',
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${email}`,
       status: 'Active',
     });
 
-    // Also reflect in Employee roster if not already present
-    const empId = `EMP-${Date.now().toString().slice(-4)}`;
-    await Employee.create({
-      id: empId,
-      name: newUser.name,
-      role: newUser.role,
-      email: newUser.email,
-      dept: dept || '',
-      shift: shift || '',
-      allocatedMachine: allocatedMachine || '',
-      username: newUser.username,
-    }).catch(e => console.warn('Employee link note:', e.message));
+    const safeUser = newUser.toSafeObject();
 
     // Broadcast live event if Socket.io exists
     const io = req.app.get('io');
     if (io) {
-      io.emit('employee:added', {
-        employee: {
-          id: empId,
-          name: newUser.name,
-          role: newUser.role,
-          email: newUser.email,
-          dept: dept || '',
-          shift: shift || '',
-          allocatedMachine: allocatedMachine || '',
-          username: newUser.username,
-        }
-      });
+      io.emit('employee:added', { employee: safeUser });
     }
 
     res.status(201).json({

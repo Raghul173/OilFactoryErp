@@ -43,20 +43,22 @@ const saveCustomProfile = (identifierKey, details) => {
 };
 
 export const AuthProvider = ({ children }) => {
-  // Always start unauthenticated so running the project lands directly on the login page
-  const [user, setUser] = useState(null);
-  const [jwtToken, setJwtToken] = useState(null);
-
-  useEffect(() => {
+  // Initialize authenticated user and token from localStorage to survive page refresh
+  const [user, setUser] = useState(() => {
     try {
-      localStorage.removeItem('smartoil_user');
-      localStorage.removeItem('smartoil_jwt');
-      sessionStorage.removeItem('smartoil_user');
-      sessionStorage.removeItem('smartoil_jwt');
-    } catch (e) {
-      console.warn('Startup session reset:', e);
+      const saved = localStorage.getItem('smartoil_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
     }
-  }, []);
+  });
+  const [jwtToken, setJwtToken] = useState(() => {
+    try {
+      return localStorage.getItem('smartoil_jwt') || null;
+    } catch {
+      return null;
+    }
+  });
 
   const [isBackendConnected, setIsBackendConnected] = useState(false);
 
@@ -250,6 +252,10 @@ export const AuthProvider = ({ children }) => {
           (backendUser.username && customProfiles[backendUser.username.toLowerCase()]);
         const finalUser = custom ? { ...backendUser, ...custom } : backendUser;
 
+        // Persist token so apiClient requests include Authorization header
+        localStorage.setItem('smartoil_jwt', token);
+        localStorage.setItem('smartoil_user', JSON.stringify(finalUser));
+
         setUser(finalUser);
         setJwtToken(token);
         setIsBackendConnected(true);
@@ -298,9 +304,30 @@ export const AuthProvider = ({ children }) => {
     const token = generateJWT(accountData);
     const fullUser = { ...accountData, loginTime: new Date().toISOString() };
 
+    localStorage.setItem('smartoil_jwt', token);
+    localStorage.setItem('smartoil_user', JSON.stringify(fullUser));
+
     setUser(fullUser);
     setJwtToken(token);
     return fullUser;
+  };
+
+  const removeAccountCredentials = (identifier) => {
+    const target = (identifier || '').toLowerCase().trim();
+    setAccountsPool(prev => {
+      const updated = prev.filter(acc => {
+        const email = (acc.email || '').toLowerCase().trim();
+        const username = (acc.username || '').toLowerCase().trim();
+        const id = (acc.id || '').toLowerCase().trim();
+        return email !== target && username !== target && id !== target;
+      });
+      try {
+        localStorage.setItem('smartoil_accounts_pool', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Could not save accounts pool:', e);
+      }
+      return updated;
+    });
   };
 
   const logout = () => {
@@ -324,6 +351,7 @@ export const AuthProvider = ({ children }) => {
       isBackendConnected,
       loginWithGmail,
       registerNewCredentials,
+      removeAccountCredentials,
       updateUserProfile,
       logout,
       hasAccess,

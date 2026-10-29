@@ -7,6 +7,7 @@ import {
   employeeService
 } from '../services/api';
 import { getSocket } from '../services/socket';
+import { useAuth } from './AuthContext';
 
 const DataContext = createContext();
 
@@ -31,6 +32,7 @@ const INITIAL_EMPLOYEES = [
 ];
 
 export const DataProvider = ({ children }) => {
+  const { isAuthenticated, user } = useAuth();
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
   const [productionLogs, setProductionLogs] = useState(INITIAL_PRODUCTION);
   const [supplierLogs, setSupplierLogs] = useState(INITIAL_SUPPLIERS);
@@ -46,39 +48,57 @@ export const DataProvider = ({ children }) => {
   const refreshAllData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [invRes, prodRes, salesRes, supRes, empRes] = await Promise.allSettled([
+      const isStaffUser = user?.role === 'Factory Staff';
+
+      const calls = [
         inventoryService.getInventory(),
         productionService.getLogs(),
         salesService.getLogs(),
         supplierService.getLogs(),
-        employeeService.getEmployees()
-      ]);
+      ];
+      // Only Administrator and Factory Manager can request employee records
+      if (!isStaffUser && (user?.role === 'Administrator' || user?.role === 'Factory Manager')) {
+        calls.push(employeeService.getEmployees());
+      }
+
+      const results = await Promise.allSettled(calls);
+      const [invRes, prodRes, salesRes, supRes] = results;
+      const empRes = results[4];
 
       if (invRes.status === 'fulfilled' && invRes.value.data?.inventory?.length > 0) {
         setInventory(invRes.value.data.inventory);
       }
-      if (prodRes.status === 'fulfilled' && prodRes.value.data?.logs?.length > 0) {
+      if (prodRes.status === 'fulfilled' && Array.isArray(prodRes.value.data?.logs)) {
         setProductionLogs(prodRes.value.data.logs);
       }
-      if (salesRes.status === 'fulfilled' && salesRes.value.data?.logs?.length > 0) {
+      if (salesRes.status === 'fulfilled' && Array.isArray(salesRes.value.data?.logs)) {
         setSalesLogs(salesRes.value.data.logs);
       }
-      if (supRes.status === 'fulfilled' && supRes.value.data?.logs?.length > 0) {
+      if (supRes.status === 'fulfilled' && Array.isArray(supRes.value.data?.logs)) {
         setSupplierLogs(supRes.value.data.logs);
       }
-      if (empRes.status === 'fulfilled' && empRes.value.data?.employees?.length > 0) {
+      if (empRes && empRes.status === 'fulfilled' && Array.isArray(empRes.value.data?.employees)) {
         setEmployees(empRes.value.data.employees);
+      } else if (isStaffUser) {
+        setEmployees([]);
       }
     } catch (error) {
       console.warn('API sync fallback to local mode:', error.message);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     refreshAllData();
   }, [refreshAllData]);
+
+  // Re-fetch all data whenever user logs in so latest DB state is reflected
+  useEffect(() => {
+    if (isAuthenticated) {
+      refreshAllData();
+    }
+  }, [isAuthenticated, refreshAllData]);
 
   // Real-Time Socket.io Synchronization
   useEffect(() => {
@@ -101,14 +121,14 @@ export const DataProvider = ({ children }) => {
 
     const handleInventoryUpdated = (data) => {
       if (data?.item) {
-        setInventory(prev => prev.map(inv => inv.id === data.item.id ? data.item : inv));
+        setInventory(prev => prev.map(inv => (inv.name === data.item.name || inv.id === data.item.id || inv._id === data.item._id) ? data.item : inv));
       }
     };
 
     const handleProductionAdded = (data) => {
       if (data?.batch) {
         setProductionLogs(prev => {
-          if (prev.some(b => b.id === data.batch.id)) return prev;
+          if (prev.some(b => b.id === data.batch.id || (b._id && b._id === data.batch._id))) return prev;
           return [data.batch, ...prev];
         });
       }
@@ -117,7 +137,7 @@ export const DataProvider = ({ children }) => {
     const handleSalesAdded = (data) => {
       if (data?.sale) {
         setSalesLogs(prev => {
-          if (prev.some(s => s.id === data.sale.id)) return prev;
+          if (prev.some(s => s.id === data.sale.id || (s._id && s._id === data.sale._id))) return prev;
           return [data.sale, ...prev];
         });
       }
@@ -126,24 +146,31 @@ export const DataProvider = ({ children }) => {
     const handleSupplierAdded = (data) => {
       if (data?.intake) {
         setSupplierLogs(prev => {
-          if (prev.some(sup => sup.id === data.intake.id)) return prev;
+          if (prev.some(sup => sup.id === data.intake.id || (sup._id && sup._id === data.intake._id))) return prev;
           return [data.intake, ...prev];
         });
       }
     };
 
     const handleEmployeeAdded = (data) => {
+      if (user?.role === 'Factory Staff') return;
       if (data?.employee) {
         setEmployees(prev => {
-          if (prev.some(e => e.id === data.employee.id || e.email === data.employee.email)) return prev;
+          if (prev.some(e => e.id === data.employee.id || e.email === data.employee.email || (e._id && e._id === data.employee._id))) return prev;
           return [...prev, data.employee];
         });
       }
     };
 
     const handleEmployeeRemoved = (data) => {
-      if (data?.id) {
-        setEmployees(prev => prev.filter(e => e.id !== data.id && e.rawId !== data.id));
+      if (data?.id || data?._id || data?.email) {
+        setEmployees(prev => prev.filter(e =>
+          e.id !== data.id &&
+          e.rawId !== data.id &&
+          e._id !== data.id &&
+          e._id !== data._id &&
+          (!data.email || e.email?.toLowerCase() !== data.email?.toLowerCase())
+        ));
       }
     };
 
@@ -178,34 +205,23 @@ export const DataProvider = ({ children }) => {
   const addProduction = async ({ oilType, quantityLiters, rawSeedWeightKg, details }) => {
     const qty = Number(quantityLiters);
     const seedKg = Number(rawSeedWeightKg) > 0 ? Number(rawSeedWeightKg) : Math.round(qty * 2.35);
-    const batchId = `BATCH-${Math.floor(100 + Math.random() * 900)}`;
 
-    const newEntry = {
-      id: batchId,
-      oilType,
-      rawSeedWeightKg: seedKg,
-      quantityLiters: qty,
-      details: details || 'Standard Extraction Batch',
-      date: new Date().toISOString().split('T')[0]
-    };
-
-    // 1. Optimistic Local State Update
-    setProductionLogs(prev => [newEntry, ...prev]);
-    setInventory(prev => prev.map(item => {
-      if (item.name === oilType) {
-        return {
-          ...item,
-          currentLiters: Math.min(item.capacityLiters, item.currentLiters + qty)
-        };
-      }
-      return item;
-    }));
-
-    // 2. Call Backend API
     try {
-      await productionService.addBatch({ oilType, quantityLiters: qty, rawSeedWeightKg: seedKg, details });
+      const res = await productionService.addBatch({ oilType, quantityLiters: qty, rawSeedWeightKg: seedKg, details });
+      if (res.data?.batch) {
+        setProductionLogs(prev => {
+          if (prev.some(b => b.id === res.data.batch.id || (b._id && b._id === res.data.batch._id))) return prev;
+          return [res.data.batch, ...prev];
+        });
+      }
+      if (res.data?.updatedInventory) {
+        setInventory(prev => prev.map(item => (item.name === oilType || item.id === res.data.updatedInventory.id) ? res.data.updatedInventory : item));
+      }
+      return res.data;
     } catch (err) {
-      console.warn('Backend production batch sync error (kept local state):', err.message);
+      console.warn('Backend production batch sync error (re-syncing):', err.message);
+      refreshAllData();
+      throw err;
     }
   };
 
@@ -224,7 +240,7 @@ export const DataProvider = ({ children }) => {
       const res = await salesService.addSale({ orderType, buyerName, oilType, quantityLiters: qty, totalAmount: amt });
       if (res.data?.sale) {
         setSalesLogs(prev => {
-          if (prev.some(s => s.id === res.data.sale.id)) return prev;
+          if (prev.some(s => s.id === res.data.sale.id || (s._id && s._id === res.data.sale._id))) return prev;
           return [res.data.sale, ...prev];
         });
       }
@@ -262,60 +278,68 @@ export const DataProvider = ({ children }) => {
 
   // Action: Add Supplier Purchase Intake
   const addSupplier = async ({ supplierName, materialItem, quantity, totalCost }) => {
-    const supId = `SUP-0${supplierLogs.length + 1}`;
-    const newSupplier = {
-      id: supId,
-      supplierName,
-      materialItem,
-      quantity,
-      totalCost: Number(totalCost),
-      date: new Date().toISOString().split('T')[0]
-    };
-
-    // 1. Optimistic Local State Update
-    setSupplierLogs(prev => [newSupplier, ...prev]);
-
-    // 2. Call Backend API
     try {
-      await supplierService.addIntake({ supplierName, materialItem, quantity, totalCost });
+      const res = await supplierService.addIntake({ supplierName, materialItem, quantity, totalCost });
+      if (res.data?.intake) {
+        setSupplierLogs(prev => {
+          if (prev.some(s => s.id === res.data.intake.id || (s._id && s._id === res.data.intake._id))) return prev;
+          return [res.data.intake, ...prev];
+        });
+      }
+      return res.data;
     } catch (err) {
       console.warn('Backend supplier sync error:', err.message);
+      refreshAllData();
+      throw err;
     }
   };
 
-  // Action: Add Employee
+  // Action: Add Employee (Admin only)
   const addEmployee = async (member) => {
-    const empId = `EMP-0${employees.length + 1}`;
-    const newEmp = { id: empId, ...member };
+    const cleanEmail = (member.email || '').toLowerCase().trim();
+    if (employees.some(e => (e.email || '').toLowerCase().trim() === cleanEmail)) {
+      throw new Error(`An employee with email "${member.email}" already exists.`);
+    }
 
-    // 1. Optimistic Local State Update
-    setEmployees(prev => [...prev, newEmp]);
-
-    // 2. Call Backend API
     try {
-      await employeeService.addEmployee(member);
+      const res = await employeeService.addEmployee(member);
+      if (res.data?.employee) {
+        setEmployees(prev => {
+          if (prev.some(e => e.id === res.data.employee.id || e.email === cleanEmail || (e._id && e._id === res.data.employee._id))) return prev;
+          return [...prev, res.data.employee];
+        });
+      }
+      return res.data?.employee;
     } catch (err) {
-      console.warn('Backend add employee sync error:', err.message);
+      console.error('Backend add employee sync error:', err.response?.data?.message || err.message);
+      refreshAllData();
+      throw new Error(err.response?.data?.message || err.message || 'Failed to add employee');
     }
   };
 
   // Action: Remove Employee
   const removeEmployee = async (id) => {
     // 1. Optimistic Local State Update
-    setEmployees(prev => prev.filter(e => e.id !== id && e.rawId !== id));
+    setEmployees(prev => prev.filter(e =>
+      e.id !== id &&
+      e.rawId !== id &&
+      e._id !== id &&
+      (!e.email || e.email.toLowerCase() !== String(id).toLowerCase())
+    ));
 
     // 2. Call Backend API
     try {
       await employeeService.removeEmployee(id);
     } catch (err) {
-      console.warn('Backend remove employee sync error:', err.message);
+      console.error('Backend remove employee sync error:', err.response?.data?.message || err.message);
+      refreshAllData();
     }
   };
 
   // Action: Update Employee Attendance
   const updateAttendance = (id, attendance) => {
     setEmployees(prev =>
-      prev.map(emp => (emp.id === id || emp.rawId === id) ? { ...emp, attendance } : emp)
+      prev.map(emp => (emp.id === id || emp.rawId === id || emp._id === id) ? { ...emp, attendance } : emp)
     );
   };
 
